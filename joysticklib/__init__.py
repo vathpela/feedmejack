@@ -1,4 +1,6 @@
 #!/usr/bin/python3
 
-from coord import *
-from gcode import *
+from . import coord
+from . import gcode
+
+__all__ = ['coord', 'gcode']

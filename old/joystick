@@ -1,0 +1,263 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import string
+
+class GCodeFormatter(object):
+    def __getattribute__(self, name):
+        _attrs = {
+            'x': ['X', '_float'],
+            'y': ['Y', '_float'],
+            'z': ['Z', '_float'],
+            'f': ['F', '_int'],
+            }
+
+        def _float(self, f):
+            return "%0.6f" % (f,)
+
+        def _int(self, i):
+            return "%d" % (i,)
+
+        def format_it(self, a, b):
+            return "%s%s" % (a, b)
+
+        if name == '_int':
+            return _int
+        if name == '_float':
+            return _float
+
+        try:
+            def tmp(value):
+                return format_it(self, _attrs[name][0],
+                        getattr(self, _attrs[name][1])(self, value))
+            return tmp
+        except KeyError:
+            raise AttributeError(name)
+
+class Coordinate(object):
+    def __init__(self, x=0, y=0, z=0):
+        self._x = x
+        self._y = y
+        self._z = z
+
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def y(self):
+        return self._y
+
+    @property
+    def z(self):
+        return self._z
+
+class Wasteboard(object):
+    def __init__(self, device):
+        self.fd = os.open(device, os.O_RDWR)
+        self.device = os.fdopen(self.fd, "w+b", buffering=0)
+
+        self.mpos = Coordinate(150, 150, 30)
+        self.wpos = Coordinate(150, 150, 30)
+        self._f=100
+
+        self.command("G21")
+        #self.command("G90")
+
+        self.calibrate()
+
+    @property
+    def f(self):
+        return int(self._f)
+
+    def command(self, s):
+        cmd = "%s\n" % (s,)
+        print("%s" % (s,))
+        os.write(self.device.fileno(), cmd.encode('utf8'))
+        response = self.getline()
+        print("%s" % (response,))
+        return response
+
+    def center(self):
+        self.command("G1 Z30 F1000")
+        self.gotoxyz(150, 150, 30, 1000)
+        self.status()
+
+    def reset_position(self):
+        self.command("G92 X150 Y150 Z30")
+
+    def gotoxyz(self, x=None, y=None, z=None, f=None):
+        if f is None:
+            f = self.f
+        if f is None:
+            cmd = "G0"
+            feed = None
+        else:
+            cmd = "G1"
+            feed = "F%d" % (f,)
+
+        if x:
+            cmd = "%s X%0.6f" % (cmd, x)
+        if y:
+            cmd = "%s Y%0.6f" % (cmd, y)
+        if z:
+            cmd = "%s Z%0.6f" % (cmd, z)
+        if feed:
+            cmd = "%s %s" % (cmd, feed)
+
+        self.command(cmd)
+
+        if x:
+            self.mpos._x = x
+        if y:
+            self.mpos._y = y
+        if z:
+            self.mpos._z = z
+
+    def gotox(self, x, f=None):
+        self.gotoxyz(x=x, f=f)
+
+    def gotoy(self, y, f=None):
+        self.gotoxyz(y=y, f=f)
+
+    def gotoxy(self, x, y, f=None):
+        self.gotoxyz(x=x, y=y, f=f)
+
+    def gotoz(self, z, f=None):
+        self.gotoxyz(z=z, f=f)
+
+    def left(self, amt):
+        self.gotox(self.mpos.x-amt)
+
+    def right(self, amt):
+        self.left(-amt)
+
+    def back(self, amt):
+        self.gotoy(self.mpos.y-amt)
+
+    def forward(self, amt):
+        self.back(-amt)
+
+    def down(self, amt):
+        self.gotoz(self.mpos.z-amt)
+
+    def up(self, amt):
+        self.down(-amt)
+
+    def faster(self, amt):
+        self._f += amt
+
+    def slower(self, amt):
+        self.faster(-amt)
+
+    def getline(self):
+        return self.device.readline().decode('utf8').strip()
+
+    def homing_cycle(self):
+        self.command("$H")
+
+    def getpos(self):
+        os.write(self.device.fileno(), "?".encode('utf8'))
+        line = "ok"
+        while line == "ok":
+            line = self.getline()
+
+        print("%s" % (line,))
+
+        (status, line) = line[1:-1].split(',', maxsplit=1)
+        (tosser, line) = line.split(':', maxsplit=1)
+        mpos=[0,0,0]
+        (mpos[0],mpos[1],mpos[2],line) = line.split(',', maxsplit=3)
+        self.mpos._x = float(mpos[0])
+        self.mpos._y = float(mpos[1])
+        self.mpos._z = float(mpos[2])
+
+        wpos=[0,0,0]
+        (tosser, line) = line.split(':', maxsplit=1)
+        (wpos[0],wpos[1],wpos[2]) = line.split(',', maxsplit=2)
+        self.wpos._x = float(wpos[0])
+        self.wpos._y = float(wpos[1])
+        self.wpos._z = float(wpos[2])
+
+        #self.command("G92 X150 Y150 Z30")
+        #self._x = 150
+        #self._y = 150
+        #self._z = 30
+
+    def calibrate(self):
+        self.homing_cycle()
+        self.getpos()
+        self.status()
+
+    def status(self):
+        print("position: (%0.6f, %0.6f, %0.6f) feedrate: %d" %
+                (self.mpos.x, self.mpos.y, self.mpos.z, self.f))
+
+if __name__ == '__main__':
+    args = {
+        'serial': '/dev/ttyACM0'
+        }
+
+    sys.argv = sys.argv[1:]
+
+    def getval(char, string):
+        arg = sys.argv[0]
+        dashes = '--%s' % (string,)
+        if arg == '-%c' % (char,):
+            value = sys.argv[1]
+            sys.argv = sys.argv[2:]
+            args[string] = value
+            return True
+        elif arg.startswith(dashes):
+            arg = arg[len(dashes):]
+            if len(arg) > 0 and arg[0] == '=':
+                value = arg[1:]
+                sys.argv = sys.argv[1:]
+            else:
+                value = sys.argv[1]
+                sys.argv = sys.argv[2:]
+            args[string] = value
+            return True
+        return False
+
+    while len(sys.argv) > 1:
+        if getval('s', 'serial'):
+            if args['serial'][0] != '/':
+                args['serial'] = '/dev/%s' % (args['serial'],)
+            continue
+
+    wb = Wasteboard(args['serial'])
+
+    wb.center()
+    amts = {
+        'c': (wb.calibrate, ),
+        'p': (wb.reset_position, ),
+        'a': (wb.left, 0.1),
+        'A': (wb.left, 1),
+        'd': (wb.right, 0.1),
+        'D': (wb.right, 1.0),
+        'w': (wb.forward, 0.1),
+        'W': (wb.forward, 1.0),
+        's': (wb.back, 0.1),
+        'S': (wb.back, 1.0),
+        'k': (wb.up, 0.1),
+        'K': (wb.up, 1),
+        'j': (wb.down, 0.1),
+        'J': (wb.down, 1),
+        '0': (wb.center,),
+        '+': (wb.faster, 10),
+        '-': (wb.slower, 10),
+        '?': (wb.status,),
+        }
+
+    input = os.fdopen(sys.stdin.fileno(), 'rb', buffering=0)
+
+    while True:
+        x = input.read(1)
+        try:
+            x = x.decode('utf8')
+            amts[x][0](*amts[x][1:])
+        except KeyError:
+            if x != '\n' and x != ' ':
+                print("Invalid key '%s'" % (x,))

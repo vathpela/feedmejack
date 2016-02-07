@@ -58,6 +58,8 @@ class Boundary(object):
         return Boundary(test=test, positive=positive)
 
 class Mask(object):
+    _strname = "Mask"
+
     def __init__(self, positive=True, *bounds):
         self.positive = bool(positive)
         self.bounds = []
@@ -82,33 +84,35 @@ class Mask(object):
         truths = [checkbounds(x[0], x[1]) for x in argpairs]
         return not False in truths
 
-    def add_bound(self, b):
+    def add_bound(self, b, positive=True):
+        if isinstance(b, Boundary):
+            bound = b
+        else:
+            bound = Boundary(b, positive=positive)
         self.bounds.append(b)
 
     def __str__(self):
+        st = "%s(" % (self.__class__._strname,)
         if self.positive:
             p = " "
         else:
             p = " not "
         pj = " and%s" % (p,)
         s = pj.join([str(b) for b in self.bounds])
+        st += "%s)" % (s,)
         if s:
-            return s
+            return st
         else:
             return "True"
 
 class BoxMask(Mask):
-    def __init__(self, positive=True, xy_min=None, xy_max=None, box=None):
-        if (box and (xy_min or xy_max)) or \
-                (not box and (not xy_min or not xy_max)):
-            raise ValueError("box and [xy_min,xy_max] are mutually exclusive")
-        if not box:
-            box = Box(xy_min=xy_min, xy_max=xy_max)
+    _strname = "BoxMask"
+
+    def __init__(self, box, positive=True):
         self.box = box
         Mask.__init__(self)
         self.positive=positive
-        self.add_bound(lambda x: (self.positive and x in self.box) or \
-                (not self.positive and x not in self.box))
+        self.add_bound(Boundary(box, positive=positive))
 
 __all__ = ['Mask', 'Boundary']
 
@@ -171,6 +175,17 @@ if __name__ == '__main__':
     box2 = Box(XY(25,25), XY(75,75))
     m.add_bound(Boundary(box2, positive=False))
     print("bound0: %s\nbound1: %s" % (box, box2))
+    print("Mask(): %s" % (m,))
+    for x in [-1,0,1,24,25,26,74,75,76,99,100,101]:
+        p = XY(x,x)
+        print("p in m === %s in %s === %s" % (p, m, p in m))
+
+    m = BoxMask(box=box)
+    print("Mask(): %s" % (m,))
+    for x in [-1,0,1,24,25,26,74,75,76,99,100,101]:
+        p = XY(x,x)
+        print("p in m === %s in %s === %s" % (p, m, p in m))
+    m.add_bound(Boundary(box2, positive=False))
     print("Mask(): %s" % (m,))
     for x in [-1,0,1,24,25,26,74,75,76,99,100,101]:
         p = XY(x,x)

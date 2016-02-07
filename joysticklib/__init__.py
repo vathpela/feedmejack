@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 
-from . import coord
+from . import xyz
 from . import gcode
+from . import shapes
+from . import tracers
+from . import masks
 
-__all__ = ['coord', 'gcode']
+__all__ = ['xyz', 'gcode', 'shapes', 'tracers', 'masks']

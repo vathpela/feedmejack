@@ -3,6 +3,8 @@
 if __name__ != '__main__':
     from .shapes import *
 
+import pdb
+
 class Boundary(object):
     def __init__(self, test, positive=True):
         self.test = test
@@ -16,6 +18,7 @@ class Boundary(object):
         elif hasattr(self.test, '__call__'):
             ret = self.test(thingy)
         elif hasattr(self.test, '__contains__'):
+            #pdb.set_trace()
             ret = thingy in self.test
         else:
             ret = bool(thingy)
@@ -100,10 +103,11 @@ class Mask(object):
 class ShapeMask(Mask):
     _strname = "ShapeMask"
 
-    def __init__(self, shape, positive=True):
-        self.box = shape
+    def __init__(self, *shapes, positive=True):
+        self.shapes = shapes
         Mask.__init__(self)
-        self.add_bound(Boundary(shape, positive=positive))
+        for shape in self.shapes:
+            self.add_bound(Boundary(shape, positive=positive))
 
 __all__ = ['Mask', 'Boundary']
 
@@ -153,11 +157,11 @@ if __name__ == '__main__':
     #print("%s in %s: %s" % (p, nb, p in nb))
 
     box = Box(XY(0,0), XY(100,100))
-    m = ShapeMask(shape=box)
+    m = ShapeMask(box)
     print("Mask(): %s" % (m,))
     print("p in m === %s in %s === %s" % (p, m, p in m))
 
-    m = ShapeMask(shape=box, positive=False)
+    m = ShapeMask(box, positive=False)
     print("Mask(): %s" % (m,))
     print("p in m === %s in %s === %s" % (p, m, p in m))
 
@@ -171,7 +175,7 @@ if __name__ == '__main__':
         p = XY(x,x)
         print("p in m === %s in %s === %s" % (p, m, p in m))
 
-    m = ShapeMask(shape=box)
+    m = ShapeMask(box)
     print("Mask(): %s" % (m,))
     for x in [-1,0,1,24,25,26,74,75,76,99,100,101]:
         p = XY(x,x)
@@ -184,7 +188,7 @@ if __name__ == '__main__':
 
     plate = Plate(XY(10,10), 2)
     print("plate: %s" % (plate,))
-    m = ShapeMask(shape=plate)
+    m = ShapeMask(plate)
     print("Mask(): %s" % (m,))
     b = Box(XY(10.5,10.5), XY(12,12))
     m.add_bound(Boundary(b, positive=False))
@@ -192,7 +196,7 @@ if __name__ == '__main__':
 
     plate = Plate(XY(10,10), 2)
     print("plate: %s" % (plate,))
-    m = ShapeMask(shape=plate)
+    m = ShapeMask(plate)
     print("Mask(): %s" % (m,))
     b = Box(XY(10.1,10.1), XY(12,12))
     m.add_bound(Boundary(b, positive=False))

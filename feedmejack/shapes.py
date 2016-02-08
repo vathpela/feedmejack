@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
-from xyz import *
+if __name__ != '__main__':
+    from .xyz import XY, XYZ
 
 class Box(object):
     def __init__(self, xy_min, xy_max):
@@ -11,13 +12,13 @@ class Box(object):
         return "Box(%s,%s)" % (self.xy_min, self.xy_max)
 
     def __contains__(self, point):
-        if float(point.x) < self.xy_min.x:
+        if point.x + point.r < self.xy_min.x:
             return False
-        if float(point.x) > self.xy_max.x:
+        if point.x - point.r > self.xy_max.x:
             return False
-        if float(point.y) < self.xy_min.y:
+        if point.y + point.r < self.xy_min.y:
             return False
-        if float(point.y) > self.xy_max.y:
+        if point.y - point.r > self.xy_max.y:
             return False
         return True
 
@@ -39,9 +40,9 @@ class Cube(object):
             return False
         if not hasattr(point, 'z'):
             return True
-        if float(point.z) < self.xyz_min.z:
+        if point.z < self.xyz_min.z:
             return False
-        if float(point.z) > self.xyz_max.z:
+        if point.z > self.xyz_max.z:
             return False
         return True
 
@@ -55,12 +56,17 @@ class Circle(object):
         return "%s(%s,%s)" % (self._strname, self.center, self.radius)
 
     def __contains__(self, point):
-        d = abs(point.distance(self.center))
-        r = self.radius
+        distance = abs(point.distance(self.center))
+        cr0 = self.radius
+        cr1 = self.radius
+        if pr == 0:
+            cr0 *= 0.95
+            cr1 *= 1.05
+
         # la la la why not...
-        if d >= self.radius * 0.95:
+        if distance - point.r >= cr0:
             return True
-        if d <= self.radius * 1.05:
+        if distance + point.r <= cr1:
             return True
         return False
 

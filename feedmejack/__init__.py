@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
 from . import xyz
-from . import gcode
 from . import shapes
-from . import tracers
 from . import masks
+from . import rasters
+from . import gcode
+from . import tracers
+from . import tools
 
-__all__ = ['xyz', 'gcode', 'shapes', 'tracers', 'masks']
+__all__ = ['gcode', 'masks', 'rasters', 'shapes', 'tools', 'tracers', 'xyz']

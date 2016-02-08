@@ -1,9 +1,10 @@
 #!/usr/bin/python3
 
 class XY(object):
-    def __init__(self, x, y):
+    def __init__(self, x, y, r=0):
         self.x = float(x)
         self.y = float(y)
+        self.r = float(r)
 
     def __add__(self, other):
         return XY(self.x + other.x, self.y + other.y)
@@ -28,6 +29,8 @@ class XY(object):
         return self.__str__()
 
     def __eq__(self, other):
+        if not isinstance(other, XY):
+            return False
         return self.x == other.x and self.y == other.y
 
     def leftof(self, other):
@@ -62,12 +65,16 @@ class XY(object):
         y *= y
         return math.sqrt(x+y)
 
+    def __hash__(self):
+        return hash((self.x, self.y, self.r))
+
 class XYZ(object):
-    def __init__(self, x, y, z):
+    def __init__(self, x, y, z, r=0):
         self.xy = XY(x,y)
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
+        self.r = float(r)
 
     def __add__(self, other):
         return XYZ(self.x + other.x, self.y + other.y, other.z)
@@ -153,6 +160,9 @@ class XYZ(object):
         z = z2 - self.z
         z *= z
         return math.sqrt(x+y+z)
+
+    def __hash__(self):
+        return hash((self.x, self.y, self.z, self.r))
 
 def Point(x, y, z=None):
     if z is None:

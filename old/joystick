@@ -58,9 +58,11 @@ class Wasteboard(object):
         self.fd = os.open(device, os.O_RDWR)
         self.device = os.fdopen(self.fd, "w+b", buffering=0)
 
-        self.mpos = Coordinate(150, 150, 30)
-        self.wpos = Coordinate(150, 150, 30)
-        self._f=100
+        #self.mpos = Coordinate(150, 150, 30)
+        #self.wpos = Coordinate(150, 150, 30)
+        self.mpos = Coordinate(28.254, 43.669,-66.140)
+        self.wpos = Coordinate(30.094, 51.529, 8.2)
+        self._f=1000
 
         self.command("G21")
         #self.command("G90")
@@ -80,12 +82,17 @@ class Wasteboard(object):
         return response
 
     def center(self):
-        self.command("G1 Z30 F1000")
-        self.gotoxyz(150, 150, 30, 1000)
+        #self.command("G1 Z30 F1000")
+        #self.gotoxyz(150, 150, 30, 1000)
+        self.gotoxyz(30.094, 51.529, 8.2)
+        self.mpos = Coordinate(28.254, 43.669,-66.140)
+        self.wpos = Coordinate(30.094, 51.529, 8.2)
+        self._f=10
         self.status()
 
     def reset_position(self):
-        self.command("G92 X150 Y150 Z30")
+        #self.command("G92 X150 Y150 Z30")
+        pass
 
     def gotoxyz(self, x=None, y=None, z=None, f=None):
         if f is None:
@@ -109,11 +116,11 @@ class Wasteboard(object):
         self.command(cmd)
 
         if x:
-            self.mpos._x = x
+            self.wpos._x = x
         if y:
-            self.mpos._y = y
+            self.wpos._y = y
         if z:
-            self.mpos._z = z
+            self.wpos._z = z
 
     def gotox(self, x, f=None):
         self.gotoxyz(x=x, f=f)
@@ -128,19 +135,19 @@ class Wasteboard(object):
         self.gotoxyz(z=z, f=f)
 
     def left(self, amt):
-        self.gotox(self.mpos.x-amt)
+        self.gotox(self.wpos.x-amt)
 
     def right(self, amt):
         self.left(-amt)
 
     def back(self, amt):
-        self.gotoy(self.mpos.y-amt)
+        self.gotoy(self.wpos.y-amt)
 
     def forward(self, amt):
         self.back(-amt)
 
     def down(self, amt):
-        self.gotoz(self.mpos.z-amt)
+        self.gotoz(self.wpos.z-amt)
 
     def up(self, amt):
         self.down(-amt)
@@ -187,12 +194,14 @@ class Wasteboard(object):
 
     def calibrate(self):
         self.homing_cycle()
+        self.command("G55")
+        self.command("G43.1 Z20.0")
         self.getpos()
         self.status()
 
     def status(self):
         print("position: (%0.6f, %0.6f, %0.6f) feedrate: %d" %
-                (self.mpos.x, self.mpos.y, self.mpos.z, self.f))
+                (self.wpos.x, self.wpos.y, self.wpos.z, self.f))
 
 if __name__ == '__main__':
     args = {

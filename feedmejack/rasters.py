@@ -72,4 +72,4 @@ class PlateRasterizer(ArcRasterizer):
                 prev = p
                 if p in self.mask:
                     yield p
-__all__ = ['arc']
+__all__ = ['ArcRasterizer', 'PlateRasterizer']

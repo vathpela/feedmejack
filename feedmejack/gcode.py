@@ -21,7 +21,10 @@ class GCodeMaker(object):
         return self.__str__()
 
     def string(self, **args):
-        s = "%s" % (self._cmd,)
+        if hasattr(self, '_noname') and self._noname:
+            s = ""
+        else:
+            s = "%s" % (self._cmd,)
         for x in self._order:
             if isinstance(x, dict):
                 for k,vals in x.items():
@@ -58,6 +61,12 @@ class GCodeMaker(object):
     def estimate_pct_complete(self, final, status):
         pass
 
+class F(GCodeMaker):
+    _cmd = "F"
+    _order = ['f',]
+    _tmpls = {'f':"F%0.03f"}
+    _noname = True
+
 class G0(GCodeMaker):
     _cmd = "G0"
     _order = ['f', {'end': ['x', 'y', 'z']}]
@@ -66,7 +75,7 @@ class G0(GCodeMaker):
              }
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 class G1(GCodeMaker):
     _cmd = "G1"
@@ -85,7 +94,7 @@ class G2(GCodeMaker):
             'f':"F%0.03f", 'i':"I%0.03f",'j':'J%0.03f'}
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 class G3(GCodeMaker):
     _cmd = "G3"
@@ -94,7 +103,7 @@ class G3(GCodeMaker):
             'f':"F%0.03f", 'i':"I%0.03f",'j':'J%0.03f'}
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 class G21(GCodeMaker):
     _cmd = "G21"
@@ -102,15 +111,16 @@ class G21(GCodeMaker):
     _tmpls = {}
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 class G43dot1(GCodeMaker):
+    """ Dynamic Tool Length Offset"""
     _cmd = "G43.1"
     _order = ['z']
     _tmpls = {'z':"Z%0.03f"}
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 class G54(GCodeMaker):
     _cmd = "G54"
@@ -118,7 +128,7 @@ class G54(GCodeMaker):
     _tmpls = {}
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 class G55(GCodeMaker):
     _cmd = "G55"
@@ -126,7 +136,7 @@ class G55(GCodeMaker):
     _tmpls = {}
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 class G90(GCodeMaker):
     _cmd = "G90"
@@ -134,7 +144,7 @@ class G90(GCodeMaker):
     _tmpls = {}
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 class G92(GCodeMaker):
     _cmd = "G92"
@@ -142,6 +152,6 @@ class G92(GCodeMaker):
     _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f"}
 
     def __init__(self, **data):
-        GCodeMaker.__init__(self, data)
+        GCodeMaker.__init__(self, **data)
 
 

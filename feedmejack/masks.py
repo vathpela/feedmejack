@@ -103,7 +103,7 @@ class Mask(object):
 class ShapeMask(Mask):
     _strname = "ShapeMask"
 
-    def __init__(self, *shapes, positive=True):
+    def __init__(self, *shapes, positive=False):
         self.shapes = shapes
         Mask.__init__(self)
         for shape in self.shapes:

@@ -1,0 +1,542 @@
+#!/usr/bin/python3
+
+import sys
+import feedmejack as fmj
+import pdb
+import pprint
+import time
+
+def frange(x, y, jump):
+    while x < y:
+        yield x
+        x += jump
+
+def make_shapes(lines):
+    yield str(fmj.gcode.F(f=100))
+    yield str(fmj.gcode.G0(end={'z':40}))
+    yield str(fmj.gcode.G0(end={'x':150,'y':150,'z':40}))
+    for i in range(0, len(lines)):
+        line = lines[i]
+        startx = line.xy_min.x + 150
+        starty = line.xy_min.y + 150
+        endx = line.xy_max.x + 150
+        endy = line.xy_max.y + 150
+
+        if i == 0:
+            go_to_start = True
+        else:
+            prev = lines[i-1]
+            if prev.xy_max == line.xy_min:
+                go_to_start = False
+            else:
+                go_to_start = True
+        if go_to_start:
+            yield str(fmj.gcode.G0(end={'z':10}))
+            yield str(fmj.gcode.G0(end={'x':startx,'y':starty}))
+            yield str(fmj.gcode.G1(end={'z':0.2}, f=100))
+        yield str(fmj.gcode.G1(end={'x':endx,'y':endy}, f=100))
+        if i == len(lines)-1:
+            yield str(fmj.gcode.G1(end={'z':10}, f=100))
+
+def status_cb(**kwds):
+    items = []
+    for x,y in kwds.items():
+        x = x.strip()
+        y = str(y).strip()
+        i = "=".join([x, y])
+        items.append(i)
+    s = " ".join(items)
+    #pdb.set_trace()
+    if len(s) > 0:
+        print("%s" % (s,))
+
+def drawlines(face):
+    lines = []
+    next_faces = [face]
+    lastline = None
+
+    done = {}
+    while next_faces:
+        face = next_faces.pop(0)
+        # try:
+        #    faces.remove(face)
+        #except ValueError:
+        #    pass
+        l = face.lineAtZ(slices[layer])
+        if l:
+            lines.append(l)
+        print(" %s nf:%d d:%d" % (l, len(next_faces), len(done)))
+        done[face] = 1
+        try:
+            next_faces.remove(face)
+        except:
+            pass
+
+        continue
+        for v in face._vertices:
+            vertices.append(v)
+        vertices.reverse()
+        nvs = []
+        # try to find the point from the previous line
+        if lastline:
+            for v in vertices:
+                pass
+        for i in range(0, len(vertices)-1):
+            v0 = vertices[i]
+            v0 = fmj.xyz.XY(v0.x, v0.y)
+            v1 = vertices[i+1]
+            v1 = fmj.xyz.XY(v1.x, v1.y)
+            if v0 != v1:
+                l = fmj.shapes.Line(v0, v1)
+                print(" %s f:%d nf:%d d:%d" % (l, len(faces), len(next_faces), len(done)))
+
+        for v in vertices:
+            while lib._vertices[v]['faces']:
+                newface = lib._vertices[v]['faces'].pop(0)
+                if newface == face or newface in done:
+                    try:
+                        faces.remove(face)
+                    except:
+                        pass
+                    continue
+                next_faces.append(newface)
+
+    return lines
+
+def makesvg(output, lines):
+    import svgwrite
+
+    dwg = svgwrite.Drawing(output, size=(300, 300))
+    for line in lines:
+        lx = line.xy_min.x
+        ly = line.xy_min.y
+        rx = line.xy_max.x
+        ry = line.xy_max.y
+
+        l = dwg.line((lx, ly), (rx, ry),
+                     stroke=svgwrite.rgb(10, 10, 16, '%'))
+        dwg.add(l)
+    dwg.save()
+
+def makegcode(lines):
+    pass
+
+def scale(vertex, lower, upper, minimum=0, maximum=300):
+    a = minimum - lower
+
+    m = (maximum - minimum) / (upper - lower)
+
+    #print("m: %f a: %f" % (m, a))
+
+    return fmj.xyz.XYZ((vertex.x + a) * m,
+                       (vertex.y + a) * m,
+                       vertex.z)
+
+def get_faces(obj, height):
+    r = obj.zRange
+
+    slices = list(frange(r[0], r[1], height))
+    if layer > len(slices):
+        sys.exit(0)
+    # intentionally just doing faces that /directly/ intersect the bottom
+    # of the layer, not just things that are in the distance between the top and
+    # the bottom, or else we'd also have to figure out what height to draw our
+    # intersecting line at
+    zslice = obj.zSlice(bottom=slices[layer], top=slices[layer]+4)
+    print("obj.zSlice(top=%s):" % (slices[layer],))
+    return zslice
+
+def do_slicing(obj, height):
+    faces = get_faces(obj, height)
+    del obj
+
+    done = {}
+    lines = []
+    for f in faces:
+        newlines = True
+        if not f in done:
+            newlines = drawlines(f)
+            if newlines:
+                lines += newlines
+            done[f] = True
+
+    print("initial lines are:")
+    ret = []
+    for line in lines:
+        if line.xy_min == line.xy_max:
+            continue
+        print("%s" % (line,))
+        ret.append(line)
+
+    del faces
+    return ret
+
+    r = len(lines)
+    i = 0
+    while i < r:
+        while i < r and lines[i].xy_min == lines[i].xy_max:
+            del lines[i]
+            r-=1
+        i+=1
+
+    points = {}
+    for line in lines:
+        points.setdefault(line.xy_max, [])
+        if line not in points[line.xy_max]:
+            points[line.xy_max].append(line)
+        points.setdefault(line.xy_min, [])
+        if line not in points[line.xy_min]:
+            points[line.xy_min].append(line)
+
+    for i in range(1, len(lines)):
+        if i == 1:
+            if lines[i-1].xy_min == lines[i].xy_min:
+                lines[i-1] = lines[i-1].reverse
+            elif lines[i-1].xy_min == lines[i].xy_max:
+                lines[i-1] = lines[i-1].reverse
+                lines[i] = lines[i].reverse
+        if lines[i-1].xy_max == lines[i].xy_max:
+            lines[i] = lines[i].reverse
+
+    newlines = []
+    line = None
+    while lines:
+        if not line:
+            line = lines.pop(0)
+            newlines.append(line)
+            # print("Found line %s in lines" % (line,))
+        if points[line.xy_max]:
+            line = points[line.xy_max].pop(0)
+            try:
+                lines.remove(line)
+            except ValueError:
+                pass
+            try:
+                points[line.xy_max].remove(line)
+            except ValueError:
+                pass
+            try:
+                points[line.xy_min].remove(line)
+            except ValueError:
+                pass
+            # print("Found line %s in xy_max" % (line,))
+        elif points[line.xy_min]:
+            line = points[line.xy_min].pop(0)
+            try:
+                lines.remove(line)
+            except ValueError:
+                pass
+            # print("Found line %s in xy_min" % (line,))
+        elif points[newlines[0].xy_min]:
+            line = points[newlines[0].xy_min].pop(0)
+            try:
+                lines.remove(line)
+            except ValueError:
+                pass
+            # print("Found line %s from newlines" % (line,))
+        else:
+            line = None
+        if line:
+            if not line in newlines and not line.reverse in newlines:
+                # print("Adding %s" % (line,))
+                newlines.append(line)
+            else:
+                # print("Ignoring %s" % (line,))
+                pass
+
+    lines = newlines
+
+    r = len(lines)
+    s = r
+    i = 0
+
+    while s > 0:
+        while i < r:
+            if i == 1:
+                if lines[i-1].reverse == lines[i]:
+                    del lines[i]
+                    r -= 1
+                    if i < r:
+                        break
+                if lines[i-1] == lines[i]:
+                    del lines[i]
+                    r -= 1
+                    if i < r:
+                        break
+
+                if lines[i-1].xy_min == lines[i].xy_min:
+                    lines[i-1] = lines[i-1].reverse
+                elif lines[i-1].xy_min == lines[i].xy_max:
+                    lines[i-1] = lines[i-1].reverse
+                    lines[i] = lines[i].reverse
+            if lines[i-1].xy_max == lines[i].xy_max:
+                lines[i] = lines[i].reverse
+            i+=1
+        s-=1
+
+    return lines
+
+if __name__ == '__main__':
+    terminal='/dev/ttyACM0'
+    def usage(retval):
+        if retval == 0:
+            out = sys.stdout
+        else:
+            out = sys.stderr
+        out.write("usage: vslice <filename.obj> <slice> [height]\n")
+        sys.exit(retval)
+
+    helps = set(['--help','-?','-h','--usage'])
+    if helps.intersection(set(sys.argv[1:])):
+        usage(0)
+
+    if "-o" in sys.argv:
+        i = sys.argv.index('-o')
+        sys.argv.pop(i)
+        outfile = sys.argv.pop(i)
+    else:
+        outfile = None
+
+    if "--svg" in sys.argv:
+        sys.argv.remove("--svg")
+        fmt = 'svg'
+    else:
+        fmt = 'gcode'
+
+    if len(sys.argv) < 3 or len(sys.argv) > 4:
+        usage(1)
+
+    infile = open(sys.argv[1], "r")
+    layer = int(sys.argv[2])
+    try:
+        height = int(sys.argv[3])
+    except:
+        height = 4
+
+    min_xyz = None
+    max_xyz = None
+    obj = fmj.xyz.Object()
+    vertices = []
+    faces = []
+    for line in infile.readlines():
+        if line[0] == 'v':
+            xyz = [float(x) for x in line[2:].split(' ')]
+            if min_xyz is None or xyz[0] < min_xyz:
+                min_xyz = xyz[0]
+            if max_xyz is None or xyz[0] > max_xyz:
+                max_xyz = xyz[0]
+            if min_xyz is None or xyz[1] < min_xyz:
+                min_xyz = xyz[1]
+            if max_xyz is None or xyz[1] > max_xyz:
+                max_xyz = xyz[1]
+            vertices.append(xyz)
+        elif line[0] == 'f':
+            indices = [int(x) for x in line[2:].split(' ')]
+            faces.append(indices)
+
+    print("scale: range is %d..%d" % (min_xyz, max_xyz))
+    for xyz in vertices:
+        old = fmj.xyz.XYZ(*xyz)
+        new = scale(old, min_xyz, max_xyz)
+        # print("scale(%s, %f, %f) -> %s" % (old, min_xyz, max_xyz, new))
+        obj.addVertex(new)
+
+    for indices in faces:
+        obj.addFace(*indices)
+
+    r = obj.zRange
+    slices = list(frange(r[0], r[1], height))
+    print("layer %d is %f" % (layer, slices[layer]))
+
+    lines = do_slicing(obj, height)
+    del obj
+
+    left = {}
+    right = {}
+    for line in lines:
+        l = left.setdefault(line.xy_min, [])
+        l.append(line)
+        l = left.setdefault(line.xy_max, [])
+        l.append(line)
+
+    oldlines = lines
+    lines = []
+    line = None
+    while oldlines:
+        print("line: %s" % (line,))
+        if line:
+            oldlines.remove(line)
+            other = fmj.xyz.Line(xy_min=line.xy_max, xy_max=newline.xy_min)
+            if other in oldlines:
+                oldlines.remove(other)
+        else:
+            line = oldlines.pop(0)
+        lines.append(line)
+        print("lines: %d oldlines: %d" % (len(lines), len(oldlines)))
+        print("left: %d" % (len(left.keys()),))
+
+        if line.xy_max in left:
+            nextlines = left[line.xy_max]
+            if line in nextlines:
+                nextlines.remove(line)
+        elif line.xy_min in left:
+            nextlines = left[line.xy_min]
+            if line in nextlines:
+                nextlines.remove(line)
+        else:
+            nextlines = []
+        print("nextlines: %d" % (len(nextlines),))
+
+        l = len(nextlines)
+        if l == 0:
+            print("%s has no right side connection (%d left)" % (line,
+                len(oldlines)))
+            line = None
+            time.sleep(0.5)
+            continue
+        elif l > 1:
+            print("%s has %d right side connections (%d left)" % (line, l,
+                len(oldlines)))
+            for nl in nextlines:
+                print(" %s" % (nl,))
+            newline = nextlines.pop(0)
+            if len(nextlines) == 0:
+                del left[line.xy_max]
+            else:
+                left[line.xy_max] = nextlines
+        else:
+            print("%s has %d right side connections (%d left)" % (line, l,
+                len(oldlines)))
+            newline = nextlines.pop(0)
+            if len(nextlines) == 0:
+                del left[line.xy_max]
+            else:
+                left[line.xy_max] = nextlines
+        if line.xy_max != newline.xy_min:
+            newline = fmj.xyz.Line(xy_min=newline.xy_max,
+                                   xy_max=newline.xy_min)
+        line = newline
+
+    if outfile:
+        if fmt == 'svg':
+            makesvg(outfile, lines)
+        else:
+            output = makegcode(lines)
+            f = open(outfile, "w")
+            f.write(output)
+            f.close()
+        sys.exit(0)
+
+    #print("Lines:")
+    #pdb.set_trace()
+    #pass
+    # for line in lines:
+    #    print(" %s" % (line,))
+
+    #import pdb
+    #pdb.set_trace()
+    #pass
+
+    #def avgX(values: [int]):
+    #    return sum([x.x for x in values]) / len(values)
+
+    #def avgY(values: [int]):
+    #    return sum([x.y for x in values]) / len(values)
+
+    #def sorter(x,y):
+    #    return x.distance(y)
+
+    #lines = [f.zline for f in zslice]
+    #points = sorted([f.XY for f in zslice], key=lambda x: x.x)
+    #sortedpoints=[]
+    #for p in points:
+    #    print("len(points): %d" % (len(points),))
+    #    nearest=None
+    #    distance=None
+    #    index=None
+    #    if len(points) == 1:
+    #        sortedpoints.append(p)
+    #        break
+    #    for i in range(0, len(points)):
+    #        q = points[i]
+    #        if p != q:
+    #            if nearest is None:
+    #                nearest = q
+    #                distance = p.distance(q)
+    #                index = i
+    #                continue
+    #            d = p.distance(q)
+    #            if d < distance:
+    #                nearest = q
+    #                distance = d
+    #                index = i
+    #                continue
+    #    sortedpoints.append(nearest)
+    #    del(points[index])
+
+    # for p in sortedpoints:
+    #    print("%f,%f" % (p.x,p.y))
+
+    tool = list(fmj.tools.find_tool(max_width=6.35, min_length=27))[0]
+    mill = fmj.Mill(terminal, status_cb, tool=tool)
+
+    cmds = make_shapes(lines)
+    pprint.pprint(list(cmds))
+    sys.exit(0)
+
+    status_cb(status=mill.status, wpos=mill.wpos)
+    should_reset=False
+
+    try:
+        if should_reset:
+            mill.reset()
+
+        mill.setup()
+    except KeyboardInterrupt:
+        signal.alarm(0)
+        raise
+    except fmj.Timeout:
+        pass
+    except:
+        raise
+
+    mill.get_status()
+
+    mill.get_status()
+    status_cb(status=mill.status, wpos=mill.wpos)
+
+    #sys.exit(3)
+
+    try:
+        #mill.start()
+        for cmd in cmds:
+            cmd = cmd.strip()
+            if not cmd.startswith('#'):
+                mill.send(cmd)
+            #mill.redraw_queue()
+            mill.wait_for_idle()
+
+        #def alrm(signum, frame):
+        #    return
+
+        #signal.signal(signal.SIGVTALRM, alrm)
+        #signal.setitimer(signal.ITIMER_VIRTUAL, 1, 1)
+
+        #while True:
+        #    #mill.quiesce(2)
+        #    if len(mill.queue) == 0 and mill.numsent == 0:
+        #        time.sleep(0.5)
+        #        mill.redraw_queue()
+        #        mill.wait_for_idle()
+        #        break
+        #    mill.mainloop()
+        #    if mill.numsent >= mill.maxsent:
+        #        mill.process_queue()
+    except KeyboardInterrupt:
+        signal.alarm(0)
+        pdb.set_trace()
+        pass
+    except:
+        raise
+    #print("Queue depth is %d numsent is %d, job is done." % (len(mill.queue),
+    #    mill.numsent))

@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import pdb
+import math
 
 class XY(object):
     def __init__(self, x, y, r=0):
@@ -190,16 +191,28 @@ class Line(object):
 
     @property
     def xyslope(self):
+        # d = self.xy_max.distance(self.xy_min)
+        # return (self.xy_max.z - self.xy_min.z) / d
+        #return (self.xy_max.y - self.xy_min.y) / \
+        #       (self.xy_max.x - self.xy_min.x)
         return (self.xy_max.y - self.xy_min.y) / \
                (self.xy_max.x - self.xy_min.x)
 
     @property
     def xzslope(self):
+        #return (self.xy_max.z - self.xy_min.z) / \
+        #       (self.xy_max.x - self.xy_min.x)
+        #d = self.xy_max.distance(self.xy_min)
+        #return (self.xy_max.y - self.xy_min.y) / d
         return (self.xy_max.z - self.xy_min.z) / \
-               (self.xy_max.x - self.xy_min.x)
+                (self.xy_max.x - self.xy_min.x)
 
     @property
     def yzslope(self):
+        #return (self.xy_max.z - self.xy_min.z) / \
+        #       (self.xy_max.y - self.xy_min.y)
+        #d = self.xy_max.distance(self.xy_min)
+        #return (self.xy_max.x - self.xy_min.x) / d
         return (self.xy_max.z - self.xy_min.z) / \
                (self.xy_max.y - self.xy_min.y)
 
@@ -240,20 +253,89 @@ class Line(object):
             return self.xy_min
         if self.xy_max.z == z:
             return self.xy_max
+        print("    %s" % (self,))
 
-        xzs = self.xzslope
-        dz = z - self.xy_min.z
-        dx = dz * xzs
-        yzs = self.yzslope
-        dy = dz * yzs
+        if self.xy_min.z > self.xy_max.z:
+            using = Line(self.xy_max, self.xy_min)
+        else:
+            using = self
 
-        if self.xy_min.x + dx > 300 or self.xy_min.y + dy > 300:
+        opposite = (z - using.xy_min.z)
+        dz = opposite
+        print("        xz opposite: %f" % (dz,))
+        mxz = (using.xzslope)
+        theta = math.atan(mxz)
+        o_over_h = (math.sin(theta))
+        radius = h = o_over_h / opposite
+        print("mxz: %f" % (mxz,))
+        dx = 1 / (mxz)
+        print("dx = 1/mxz = %f" % (dx,))
+        print("dx / opposite = %f" % (dx / opposite))
+        dx /= opposite
+        adjacent = dx
+        print("        xz adjacent is %f" % (dx,))
+
+        # dx ("adjacent") from xz is still dx in xy, so we now have dx and dz
+        mxy = (using.xyslope)
+        theta = math.atan(mxy)
+        o_over_a = mxy
+        opposite = mxy * adjacent
+        dy = opposite
+
+        # dy = opposite = math.atan(mxy) * adjacent
+        print("        xy opposite is %f" % (dy,))
+
+        # dpz = ( xy_max.z - dz) / (dz - xy_min.z)
+        # a little bit of trig, perchance?
+        # on the xz axis:
+        #   z2 - z1 = d sin(arctan(m))
+        # we know z1 and z2, and we know m on the xz and yz axes...
+        #   ( z2 - z1 ) / sin(arctan(m) = d
+        myz = (using.yzslope)
+        # dx = ( z - xy_min.z ) / math.sin(math.atan(xzm))
+        # dx = ( xy_max.x - xy_min.x ) / dpz
+
+        # on the yz axis then, the same applies
+        # dy = ( z - xy_min.z ) / math.sin(math.atan(yzm))
+        # dy = ( xy_max.y - xy_min.y ) / dpz
+
+        # print("        dpz: %f" % (dpz,))
+        print("        mxy: %f mxz: %f myz: %f" % (mxy, mxz, myz))
+        print("        dx: %f dy: %f dz: %f" % (dx,dy,dz))
+
+        if using.xy_min.x > using.xy_max.x:
+            lowx = using.xy_max.x
+        else:
+            lowx = using.xy_min.x
+        if using.xy_min.y > using.xy_max.y:
+            lowy = using.xy_max.y
+        else:
+            lowy = using.xy_min.y
+
+        x = using.xy_min.x + dx
+        y = using.xy_min.y + dy
+
+        point = XYZ(x, y, z)
+        print("maybe %s" % (point,))
+
+        if using.xy_min.x < using.xy_max.x:
+            xr = (using.xy_min.x,using.xy_max.x)
+        else:
+            xr = (using.xy_max.x,using.xy_min.x)
+        if using.xy_min.y < using.xy_max.y:
+            yr = (using.xy_min.y,using.xy_max.y)
+        else:
+            yr = (using.xy_max.y,using.xy_min.y)
+
+        if (point.x < xr[0] or point.x > xr[1]) or \
+           (point.y < yr[0] or point.y > yr[1]):
+            print("probably bad output...")
             #import pdb
             #pdb.set_trace()
             pass
             # XXX x or y is wrong here
             pass
-        return XYZ(self.xy_min.x + dx, self.xy_min.y + dy, z)
+        return point
 
     def hasEndpoint(self, xyz):
         if xyz in (self.xy_min, self.xy_max):
@@ -375,9 +457,43 @@ class Face(object):
     def minZ(self):
         return min([v.z for v in self.vertices])
 
-    def withinZ(self, top: float, bottom: float):
-        for v in self.vertices:
-            if top >= v.z and bottom <= v.z:
+    @property
+    def avgZ(self):
+        return sum([v.z for v in self.vertices]) / len(self.vertices)
+
+    def __lt__(self, other):
+        if self.avgZ == other.avgZ:
+            if self.minZ > other.minZ:
+                return False
+            return True
+        if self.avgZ > other.avgZ:
+            return False
+        return True
+
+    def __gt__(self, other):
+        if self.avgZ == other.avgZ:
+            if self.minZ < other.minZ:
+                return False
+            return True
+        if self.avgZ < other.avgZ:
+            return False
+        return True
+
+    def __eq__(self, other):
+        if self.avgZ != other.avgZ:
+            return False
+        if self.minZ != other.minZ:
+            return False
+        if self.maxZ != other.maxZ:
+            return False
+        return True
+
+    def __hash__(self):
+        return Object.__hash__(self)
+
+    def crossesZ(self, z):
+        for line in self.lines:
+            if line.crossesZ(z):
                 return True
         return False
 
@@ -397,7 +513,7 @@ class Face(object):
         for line in self.lines:
             if line.crossesZ(z):
                 crossers.append(line)
-                print("%s crosses %f" % (line, z))
+                print("lineAtZ: %s crosses %f" % (line, z))
 
         l = len(crossers)
         if l == 3:
@@ -417,10 +533,12 @@ class Face(object):
             return None
 
         try:
-            print("crossers[0]: %s crossers[1]: %s" % (crossers[0], crossers[1]))
+            print("lineAtZ:   crossers[0]: %s" % (crossers[0],))
+            print("           crossers[1]: %s" % (crossers[1],))
             pointa = crossers[0].atZ(z)
+            print("           pointa: %s" % (pointa,))
             pointb = crossers[1].atZ(z)
-            print("pointa: %s pointb: %s" % (pointa, pointb))
+            print("           pointb: %s" % (pointb,))
         except IndexError:
             pdb.set_trace()
             pass
@@ -448,10 +566,10 @@ class Object(object):
             if face.withinY(front=front, back=back):
                 yield face
 
-    def zSlice(self, top: float, bottom:float):
+    def zSlice(self, z:float):
         lib = VertexLibrary()
         for face in self.faces:
-            if face.withinZ(bottom=bottom, top=top):
+            if face.crossesZ(z):
                 vertices = []
                 for v in face.vertices:
                     i = lib.append(v)

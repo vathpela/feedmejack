@@ -65,7 +65,7 @@ def drawlines(face):
         l = face.lineAtZ(slices[layer])
         if l:
             lines.append(l)
-        print(" %s nf:%d d:%d" % (l, len(next_faces), len(done)))
+            print("got line %s nf:%d d:%d" % (l, len(next_faces), len(done)))
         done[face] = 1
         try:
             next_faces.remove(face)
@@ -121,7 +121,7 @@ def makesvg(output, lines):
 def makegcode(lines):
     pass
 
-def scale(vertex, lower, upper, minimum=0, maximum=300):
+def scale(vertex, lower, upper, min_z, minimum=0, maximum=300):
     a = minimum - lower
 
     m = (maximum - minimum) / (upper - lower)
@@ -130,7 +130,7 @@ def scale(vertex, lower, upper, minimum=0, maximum=300):
 
     return fmj.xyz.XYZ((vertex.x + a) * m,
                        (vertex.y + a) * m,
-                       vertex.z)
+                       (vertex.z + (0 - min_z) + a) * m)
 
 def get_faces(obj, height):
     r = obj.zRange
@@ -142,12 +142,17 @@ def get_faces(obj, height):
     # of the layer, not just things that are in the distance between the top and
     # the bottom, or else we'd also have to figure out what height to draw our
     # intersecting line at
-    zslice = obj.zSlice(bottom=slices[layer], top=slices[layer]+4)
-    print("obj.zSlice(top=%s):" % (slices[layer],))
+    zslice = obj.zSlice(z=slices[layer])
+    # print("obj.zSlice(top=%s):" % (slices[layer],))
     return zslice
 
 def do_slicing(obj, height):
-    faces = get_faces(obj, height)
+    print("Initial faces: ")
+    faces = list(get_faces(obj, height))
+    faces.sort()
+    for face in faces:
+        print("  %s" % (face,))
+
     del obj
 
     done = {}
@@ -315,6 +320,7 @@ if __name__ == '__main__':
 
     min_xyz = None
     max_xyz = None
+    min_z = None
     obj = fmj.xyz.Object()
     vertices = []
     faces = []
@@ -329,15 +335,17 @@ if __name__ == '__main__':
                 min_xyz = xyz[1]
             if max_xyz is None or xyz[1] > max_xyz:
                 max_xyz = xyz[1]
+            if min_z is None or xyz[2] < min_z:
+                min_z = xyz[2]
             vertices.append(xyz)
         elif line[0] == 'f':
             indices = [int(x) for x in line[2:].split(' ')]
             faces.append(indices)
 
-    print("scale: range is %d..%d" % (min_xyz, max_xyz))
+    print("scale: range is %f..%f, z offset %f" % (min_xyz, max_xyz, 0 - min_z))
     for xyz in vertices:
         old = fmj.xyz.XYZ(*xyz)
-        new = scale(old, min_xyz, max_xyz)
+        new = scale(old, min_xyz, max_xyz, min_z)
         # print("scale(%s, %f, %f) -> %s" % (old, min_xyz, max_xyz, new))
         obj.addVertex(new)
 
@@ -365,7 +373,12 @@ if __name__ == '__main__':
     while oldlines:
         print("line: %s" % (line,))
         if line:
-            oldlines.remove(line)
+            if line in oldlines:
+                oldlines.remove(line)
+            else:
+                nl = fmj.xyz.Line(line.xy_max, line.xy_min)
+                if nl in oldlines:
+                    oldlines.remove(nl)
             other = fmj.xyz.Line(xy_min=line.xy_max, xy_max=newline.xy_min)
             if other in oldlines:
                 oldlines.remove(other)
@@ -392,7 +405,7 @@ if __name__ == '__main__':
             print("%s has no right side connection (%d left)" % (line,
                 len(oldlines)))
             line = None
-            time.sleep(0.5)
+            #time.sleep(0.5)
             continue
         elif l > 1:
             print("%s has %d right side connections (%d left)" % (line, l,
@@ -409,7 +422,10 @@ if __name__ == '__main__':
                 len(oldlines)))
             newline = nextlines.pop(0)
             if len(nextlines) == 0:
-                del left[line.xy_max]
+                if line.xy_max in left:
+                    del left[line.xy_max]
+                elif line.xy_min in left:
+                    del left[line.xy_min]
             else:
                 left[line.xy_max] = nextlines
         if line.xy_max != newline.xy_min:

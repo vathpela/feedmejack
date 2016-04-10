@@ -121,15 +121,16 @@ def makesvg(output, lines):
 def makegcode(lines):
     pass
 
-def scale(vertex, lower, upper, min_z, minimum=0, maximum=300):
+def scale(vertex, lower, upper, min_z, minimum=0, maximum=300,
+          x_shift=0, y_shift=0):
     a = minimum - lower
 
     m = (maximum - minimum) / (upper - lower)
 
     #print("m: %f a: %f" % (m, a))
 
-    return fmj.xyz.XYZ((vertex.x + a) * m,
-                       (vertex.y + a) * m,
+    return fmj.xyz.XYZ((vertex.x + x_shift + a) * m,
+                       (vertex.y + y_shift + a) * m,
                        (vertex.z + (0 - min_z) + a) * m)
 
 def get_faces(obj, height):
@@ -324,6 +325,8 @@ if __name__ == '__main__':
     obj = fmj.xyz.Object()
     vertices = []
     faces = []
+    xs = []
+    ys = []
     for line in infile.readlines():
         if line[0] == 'v':
             xyz = [float(x) for x in line[2:].split(' ')]
@@ -338,14 +341,23 @@ if __name__ == '__main__':
             if min_z is None or xyz[2] < min_z:
                 min_z = xyz[2]
             vertices.append(xyz)
+            xs.append(float(xyz[0]))
+            ys.append(float(xyz[1]))
         elif line[0] == 'f':
             indices = [int(x) for x in line[2:].split(' ')]
             faces.append(indices)
 
+    avgx = sum(xs) / len(xs)
+    avgy = sum(ys) / len(ys)
+    del xs
+    del ys
+    x_shift = 150 - avgx
+    y_shift = 150 - avgy
     print("scale: range is %f..%f, z offset %f" % (min_xyz, max_xyz, 0 - min_z))
     for xyz in vertices:
         old = fmj.xyz.XYZ(*xyz)
-        new = scale(old, min_xyz, max_xyz, min_z)
+        new = scale(old, min_xyz, max_xyz, min_z, 90, 210,
+                    x_shift=x_shift, y_shift=y_shift)
         # print("scale(%s, %f, %f) -> %s" % (old, min_xyz, max_xyz, new))
         obj.addVertex(new)
 

@@ -17,10 +17,10 @@ def make_shapes(lines):
     yield str(fmj.gcode.G0(end={'x':150,'y':150,'z':40}))
     for i in range(0, len(lines)):
         line = lines[i]
-        startx = line.xy_min.x + 150
-        starty = line.xy_min.y + 150
-        endx = line.xy_max.x + 150
-        endy = line.xy_max.y + 150
+        startx = line.xy_min.x
+        starty = line.xy_min.y
+        endx = line.xy_max.x
+        endy = line.xy_max.y
 
         if i == 0:
             go_to_start = True

@@ -439,13 +439,13 @@ class Line(object):
         def errbar(x, y):
             return 100 - (100 / x * y)
 
-        if errbar(xest, x) != 0 or errbar(yest, y) != 0:
+        if abs(errbar(xest, x)) > 0.00001 or abs(errbar(yest, y)) > 0.00001:
             msg += "%s estimates: x=%s y=%s" % (indent, xest, yest)
             print("%s" % (msg,))
-        if errbar(xest, x) != 0:
+        if abs(errbar(xest, x)) > 0.00001:
             print("%s x error is %s pct" % (indent, errbar(xest, x)))
 
-        if errbar(yest, y) != 0:
+        if abs(errbar(yest, y)) > 0.00001:
             print("%s y error is %s pct" % (indent, errbar(yest, y)))
 
         def inside(val, l, r):
@@ -665,9 +665,9 @@ class Face(object):
 
         slopes=[c.xym for c in crossers]
         for crosser in crossers:
-            print("%s crosser: %s" % (indent, crosser))
+            # print("%s crosser: %s" % (indent, crosser))
             point = crosser.atZ(z)
-            print("%s point: %s" % (indent, point))
+            # print("%s point: %s" % (indent, point))
             points.append(point)
 
         if len(points) < 2:
@@ -676,7 +676,7 @@ class Face(object):
             raise ValueError
 
         line = Line(points[0], points[1])
-        print("%s new line %s (slope %s)" % (indent, line, line.xym))
+        # print("%s new line %s (slope %s)" % (indent, line, line.xym))
         return line
 
 class Object(object):

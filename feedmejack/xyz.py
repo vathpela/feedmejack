@@ -190,31 +190,34 @@ class Line(object):
         return str(self)
 
     @property
+    def xyrise(self):
+        return self.xy_max.y - self.xy_min.y
+    @property
+    def xyrun(self):
+        return self.xy_max.x - self.xy_min.x
+    @property
     def xyslope(self):
-        # d = self.xy_max.distance(self.xy_min)
-        # return (self.xy_max.z - self.xy_min.z) / d
-        #return (self.xy_max.y - self.xy_min.y) / \
-        #       (self.xy_max.x - self.xy_min.x)
-        return (self.xy_max.y - self.xy_min.y) / \
-               (self.xy_max.x - self.xy_min.x)
+        return self.xyrise / self.xyrun
 
+    @property
+    def xzrise(self):
+        return self.xy_max.z - self.xy_min.z
+    @property
+    def xzrun(self):
+        return self.xy_max.x - self.xy_min.x
     @property
     def xzslope(self):
-        #return (self.xy_max.z - self.xy_min.z) / \
-        #       (self.xy_max.x - self.xy_min.x)
-        #d = self.xy_max.distance(self.xy_min)
-        #return (self.xy_max.y - self.xy_min.y) / d
-        return (self.xy_max.z - self.xy_min.z) / \
-                (self.xy_max.x - self.xy_min.x)
+        return self.xzrise / self.xzrun
 
     @property
+    def yzrise(self):
+        return self.xy_max.z - self.xy_min.z
+    @property
+    def yzrun(self):
+        return self.xy_max.y - self.xy_min.y
+    @property
     def yzslope(self):
-        #return (self.xy_max.z - self.xy_min.z) / \
-        #       (self.xy_max.y - self.xy_min.y)
-        #d = self.xy_max.distance(self.xy_min)
-        #return (self.xy_max.x - self.xy_min.x) / d
-        return (self.xy_max.z - self.xy_min.z) / \
-               (self.xy_max.y - self.xy_min.y)
+        return self.xzrise / self.xzrun
 
     def __contains__(self, point):
         r = point.r

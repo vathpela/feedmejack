@@ -61,7 +61,6 @@ class XY(object):
         return {'x':self.x, 'y':self.y}[key]
 
     def distance(self, other):
-        import math
         x = other.x - self.x
         x *= x
         y = other.y - self.y
@@ -154,7 +153,6 @@ class XYZ(object):
         return {'x':self.x, 'y':self.y, 'z':self.z}[key]
 
     def distance(self, other):
-        import math
         x = other.x - self.x
         x *= x
         y = other.y - self.y
@@ -190,14 +188,63 @@ class Line(object):
         return str(self)
 
     @property
+    def xmin(self):
+        return self.xy_min.x
+    @property
+    def xmax(self):
+        return self.xy_max.x
+
+    @property
+    def ymin(self):
+        return self.xy_min.y
+    @property
+    def ymax(self):
+        return self.xy_max.y
+
+    @property
+    def zmin(self):
+        return self.xy_min.z
+    @property
+    def zmax(self):
+        return self.xy_max.z
+
+    @property
+    def xrange(self):
+        return self.xmax - self.xmin
+    @property
+    def yrange(self):
+        return self.ymax - self.ymin
+    @property
+    def zrange(self):
+        return self.zmax - self.zmin
+
+    # rise is in distance units
+    @property
     def xyrise(self):
         return self.xy_max.y - self.xy_min.y
+    # run is in distance units
     @property
     def xyrun(self):
         return self.xy_max.x - self.xy_min.x
+    # m is a unitless ratio
     @property
-    def xyslope(self):
+    def xym(self):
         return self.xyrise / self.xyrun
+    # theta is in degrees
+    @property
+    def xytheta(self):
+        atan = math.atan2(self.xyrise, self.xyrun)
+        return math.degrees(atan)
+    # sin/cos/tan are all ratios of distance units
+    @property
+    def xysin(self):
+        return math.sin(math.radians(self.xytheta))
+    @property
+    def xycos(self):
+        return math.cos(math.radians(self.xytheta))
+    @property
+    def xytan(self):
+        return math.tan(math.radians(self.xytheta))
 
     @property
     def xzrise(self):
@@ -206,8 +253,21 @@ class Line(object):
     def xzrun(self):
         return self.xy_max.x - self.xy_min.x
     @property
-    def xzslope(self):
+    def xzm(self):
         return self.xzrise / self.xzrun
+    @property
+    def xztheta(self):
+        atan = math.atan2(self.xzrise, self.xzrun)
+        return math.degrees(atan)
+    @property
+    def xzsin(self):
+        return math.sin(math.radians(self.xztheta))
+    @property
+    def xzcos(self):
+        return math.cos(math.radians(self.xztheta))
+    @property
+    def xztan(self):
+        return math.tan(math.radians(self.xztheta))
 
     @property
     def yzrise(self):
@@ -216,8 +276,21 @@ class Line(object):
     def yzrun(self):
         return self.xy_max.y - self.xy_min.y
     @property
-    def yzslope(self):
+    def yzm(self):
         return self.xzrise / self.xzrun
+    @property
+    def yztheta(self):
+        atan = math.atan2(self.yzrise, self.yzrun)
+        return math.degrees(atan)
+    @property
+    def yzsin(self):
+        return math.sin(math.radians(self.yztheta))
+    @property
+    def yzcos(self):
+        return math.cos(math.radians(self.yztheta))
+    @property
+    def yztan(self):
+        return math.tan(math.radians(self.yztheta))
 
     def __contains__(self, point):
         r = point.r
@@ -239,111 +312,160 @@ class Line(object):
         rrads = math.atan2(self.xyrun, self.xyrise)
 
     def crossesZ(self, z):
-        #if self.xy_min.z == z or self.xy_max.z == z:
-        #    return True
-        if self.xy_min.z > self.xy_max.z:
-            if z >= self.xy_max.z and z <= self.xy_min.z:
+        if self.zmin > self.zmax:
+            if z >= self.zmax and z <= self.zmin:
                 return True
         else:
-            if z >= self.xy_min.z and z <= self.xy_max.z:
+            if z >= self.zmin and z <= self.zmax:
                 return True
         return False
 
+    def dzAtZ(self, z):
+        # indent = "        dzAtZ:"
+        # things we know:
+        # points a(x0,y0,z0) and b(x0,y0,z0), straddling z in one way or the other
+        # point c's z1
+
+        dz = z - self.zmin
+        # print("%s dz = %f - %f = %f" % (indent, z, self.zmin, z - self.zmin))
+        return dz
+
+    def dxAtZ(self, z):
+        # indent = "        dxAtZ:"
+        # things we know:
+        # points a(x0,y0,z0) and b(x0,y0,z0), straddling z in one way or the other
+        # point c's z1
+
+        dz = self.dzAtZ(z)
+        dx = dz / self.xztan
+        # print("%s dx = dz / tan(theta[xz]) = %f / tan(%f) = %f / %f = %f" %
+        #        (indent, dz, self.xztheta, dz, self.xztan, dx))
+        return dx
+
+    def dyAtZ(self, z):
+        # indent = "        dyAtZ:"
+        # things we know:
+        # points a(x0,y0,z0) and b(x0,y0,z0), straddling z in one way or the other
+        # point c's z1
+
+        dz = self.dzAtZ(z)
+        dy = dz / self.yztan
+        # print("%s dy = dz / tan(theta[yz]) = %f / tan(%f) = %f / %f = %f" %
+        #        (indent, dz, self.yztheta, dz, self.yztan, dy))
+        return dy
+
+
     def atZ(self, z):
+        indent = "      AtZ:"
+
         if not self.crossesZ(z):
+            # raise ValueError
             return None
         if self.xy_min.z == z:
             return self.xy_min
         if self.xy_max.z == z:
             return self.xy_max
-        print("    %s" % (self,))
 
-        if self.xy_min.z > self.xy_max.z:
-            using = Line(self.xy_max, self.xy_min)
-        else:
-            using = self
+        msg = ""
+        msg += "%s finding point at z=%f\n" % (indent, z)
 
-        opposite = (z - using.xy_min.z)
-        dz = opposite
-        print("        xz opposite: %f" % (dz,))
-        mxz = (using.xzslope)
-        theta = math.atan(mxz)
-        o_over_h = (math.sin(theta))
-        radius = h = o_over_h / opposite
-        print("mxz: %f" % (mxz,))
-        dx = 1 / (mxz)
-        print("dx = 1/mxz = %f" % (dx,))
-        print("dx / opposite = %f" % (dx / opposite))
-        dx /= opposite
-        adjacent = dx
-        print("        xz adjacent is %f" % (dx,))
+        dz = self.dzAtZ(z)
+        if self.zmin + dz != z:
+            raise ValueError("%s != %s" % (self.zmin + dz, z))
+        msg += "%s FINAL Z: %f\n" % (indent, self.zmin + dz)
 
-        # dx ("adjacent") from xz is still dx in xy, so we now have dx and dz
-        mxy = (using.xyslope)
-        theta = math.atan(mxy)
-        o_over_a = mxy
-        opposite = mxy * adjacent
-        dy = opposite
+        pdz = (dz) / self.zrange
+        msg += "%s %s z=%f (%f %%)\n" % (indent, self, z, pdz*100)
 
-        # dy = opposite = math.atan(mxy) * adjacent
-        print("        xy opposite is %f" % (dy,))
+        # just sanity checking - though as a note, the only time I've seen this
+        # differ from our math.$TRIGFNS() version below, it's been enough to
+        # flip ths sign of the float, but still the value is basically 0.
+        # "Error"s look something like:
+        #   lineAtZ: Line(XYZ(163.576,13.477,332.267),XYZ(159.657,11.456,334.322))
+        #   crosses 333.998378
+        #   lineAtZ: Line(XYZ(159.657,11.456,334.322),XYZ(157.736,9.815,332.248)) crosses 333.998378
+        #   lineAtZ: crosser:
+        #       Line(XYZ(163.576,13.477,332.267),XYZ(159.657,11.456,334.322))
+        #     dzAtZ: dz = 333.998378 - 332.266512 = 1.731866
+        #       AtZ: FINAL Z: 333.998378
+        #       AtZ: Line(XYZ(163.576,13.477,332.267),XYZ(159.657,11.456,334.322)) z=333.998378 (84.239319 %)
+        #       AtZ: estimates: x=160.27509756016764 y=11.77480930658196
+        #       AtZ: dx = -3.301207
+        #       AtZ: FINAL X: 160.27509756016764
+        #       AtZ: x error is 0.0 pct
+        #       AtZ: dy = -1.7017770446177103
+        #       AtZ: FINAL Y: 11.77480930658196
+        #       AtZ: y error is -1.4210854715202004e-14 pct
+        #   lineAtZ: point: XYZ(160.275,11.775,333.998)
+        #   lineAtZ: crosser: Line(XYZ(159.657,11.456,334.322),XYZ(157.736,9.815,332.248))
+        #     dzAtZ: dz = 333.998378 - 334.322400 = -0.324022
+        #       AtZ: FINAL Z: 333.998378
+        #       AtZ: Line(XYZ(159.657,11.456,334.322),XYZ(157.736,9.815,332.248)) z=333.998378 (15.619049 %)
+        #       AtZ: estimates: x=159.3572979708394 y=11.19999308061723
+        #       AtZ: dx = -0.300163
+        #       AtZ: FINAL X: 159.3572979708394
+        #       AtZ: x error is 0.0 pct
+        #       AtZ: dy = -0.2564237619295354
+        #       AtZ: FINAL Y: 11.19999308061723
+        #       AtZ: y error is 0.0 pct
+        #   lineAtZ: point: XYZ(159.357,11.200,333.998)
+        #   lineAtZ: new line Line(XYZ(160.275,11.775,333.998),XYZ(159.357,11.200,333.998)) (slope 0.6262981947785048)
+        # got line Line(XYZ(160.275,11.775,333.998),XYZ(159.357,11.200,333.998)) nf:0 d:0
+        #
+        # in fact, the only values I've seen other than 0 are:
+        # -1.4210854715202004e-14 pct
+        #  1.4210854715202004e-14 pct
+        #  2.842170943040401e-14 pct
+        #
+        # To be honest, if every calculation I ever did came within
+        # -2e-14..3e-14 *percent* of the final answer (which is obviously just
+        # round-off error in the float), I'd be really, really happy about it.
 
-        # dpz = ( xy_max.z - dz) / (dz - xy_min.z)
-        # a little bit of trig, perchance?
-        # on the xz axis:
-        #   z2 - z1 = d sin(arctan(m))
-        # we know z1 and z2, and we know m on the xz and yz axes...
-        #   ( z2 - z1 ) / sin(arctan(m) = d
-        myz = (using.yzslope)
-        # dx = ( z - xy_min.z ) / math.sin(math.atan(xzm))
-        # dx = ( xy_max.x - xy_min.x ) / dpz
+        xest = self.xmin + (self.xrange * pdz)
+        yest = self.ymin + (self.yrange * pdz)
 
-        # on the yz axis then, the same applies
-        # dy = ( z - xy_min.z ) / math.sin(math.atan(yzm))
-        # dy = ( xy_max.y - xy_min.y ) / dpz
+        dx = self.dxAtZ(z)
+        x = self.xmin + dx
 
-        # print("        dpz: %f" % (dpz,))
-        print("        mxy: %f mxz: %f myz: %f" % (mxy, mxz, myz))
-        print("        dx: %f dy: %f dz: %f" % (dx,dy,dz))
+        msg += "%s dx = %f\n" % (indent, dx)
+        msg += "%s FINAL X: %s\n" % (indent, x)
 
-        if using.xy_min.x > using.xy_max.x:
-            lowx = using.xy_max.x
-        else:
-            lowx = using.xy_min.x
-        if using.xy_min.y > using.xy_max.y:
-            lowy = using.xy_max.y
-        else:
-            lowy = using.xy_min.y
+        dy = self.dyAtZ(z)
+        y = self.ymin + dy
 
-        x = using.xy_min.x + dx
-        y = using.xy_min.y + dy
+        msg += "%s dy = %s\n" % (indent, dy)
+        msg += "%s FINAL Y: %s\n" % (indent, y)
 
-        point = XYZ(x, y, z)
-        print("maybe %s" % (point,))
+        def errbar(x, y):
+            return 100 - (100 / x * y)
 
-        if using.xy_min.x < using.xy_max.x:
-            xr = (using.xy_min.x,using.xy_max.x)
-        else:
-            xr = (using.xy_max.x,using.xy_min.x)
-        if using.xy_min.y < using.xy_max.y:
-            yr = (using.xy_min.y,using.xy_max.y)
-        else:
-            yr = (using.xy_max.y,using.xy_min.y)
+        if errbar(xest, x) != 0 or errbar(yest, y) != 0:
+            msg += "%s estimates: x=%s y=%s" % (indent, xest, yest)
+            print("%s" % (msg,))
+        if errbar(xest, x) != 0:
+            print("%s x error is %s pct" % (indent, errbar(xest, x)))
 
-        if (point.x < xr[0] or point.x > xr[1]) or \
-           (point.y < yr[0] or point.y > yr[1]):
-            print("probably bad output...")
-            #import pdb
-            #pdb.set_trace()
-            pass
-            # XXX x or y is wrong here
-            pass
-        return point
+        if errbar(yest, y) != 0:
+            print("%s y error is %s pct" % (indent, errbar(yest, y)))
 
-    def hasEndpoint(self, xyz):
-        if xyz in (self.xy_min, self.xy_max):
+        def inside(val, l, r):
+            if l < r:
+                minimum = l
+                maximum = r
+            else:
+                minimum = r
+                maximum = l
+            if val < minimum or val > maximum:
+                return False
             return True
-        return False
+
+        if not inside(x, self.xmin, self.xmax):
+            raise ValueError("%s is not in range %s..%s" % (val, self.xmin, self.xmax))
+        if not inside(y, self.ymin, self.ymax):
+            raise ValueError("%s is not in range %s..%s" % (val, self.ymin, self.ymax))
+        if not inside(z, self.zmin, self.zmax):
+            raise ValueError("%s is not in range %s..%s" % (val, self.zmin, self.zmax))
+        return Point(x,y,z)
 
     @property
     def reverse(self):
@@ -513,39 +635,49 @@ class Face(object):
 
     def lineAtZ(self, z):
         crossers = []
+        points = []
+
+        indent="  lineAtZ:"
+
         for line in self.lines:
             if line.crossesZ(z):
                 crossers.append(line)
-                print("lineAtZ: %s crosses %f" % (line, z))
+                print("%s %s crosses %f" % (indent, line, z))
 
-        l = len(crossers)
-        if l == 3:
-            for line in crossers:
+        for line in crossers:
+            if line.xy_min.z == z or line.xy_max.z == z:
                 if line.xy_min.z == z:
-                    crossers.remove(line)
-                    l-=1
-                    break
-        if l > 2:
-            for line in crossers:
-                if line.xy_min.z == z and line.xy_max.z == z:
-                    return Line(line.xy_min, line.xy_max)
-            import pdb
-            pdb.set_trace()
-            raise RuntimeError("too many crossers: %s" % (crossers,))
-        elif l == 0:
-            return None
+                    point = line.xy_min
+                    print("%s point: %s" % (indent, point))
+                    points.append(point)
 
-        try:
-            print("lineAtZ:   crossers[0]: %s" % (crossers[0],))
-            print("           crossers[1]: %s" % (crossers[1],))
-            pointa = crossers[0].atZ(z)
-            print("           pointa: %s" % (pointa,))
-            pointb = crossers[1].atZ(z)
-            print("           pointb: %s" % (pointb,))
-        except IndexError:
+                if line.xy_max.z == z:
+                    if not line.xy_max in points:
+                        point = line.xy_max
+                        print("%s point: %s" % (indent, point))
+                        points.append(point)
+                crossers.remove(line)
+
+        if 2 - len(points) != len(crossers):
+            pdb.set_trace()
+            raise RuntimeError("mismatched points (%d) vs crossers (%d)" %
+                    (2 - len(points), len(crossers)))
+
+        slopes=[c.xym for c in crossers]
+        for crosser in crossers:
+            print("%s crosser: %s" % (indent, crosser))
+            point = crosser.atZ(z)
+            print("%s point: %s" % (indent, point))
+            points.append(point)
+
+        if len(points) < 2:
             pdb.set_trace()
             pass
-        return Line(pointa, pointb)
+            raise ValueError
+
+        line = Line(points[0], points[1])
+        print("%s new line %s (slope %s)" % (indent, line, line.xym))
+        return line
 
 class Object(object):
     def __init__(self):

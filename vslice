@@ -119,7 +119,8 @@ def makesvg(output, lines):
     dwg.save()
 
 def makegcode(lines):
-    pass
+    cmds = make_shapes(lines)
+    return cmds
 
 def scale(vertex, lower, upper, min_z, minimum=0, maximum=300,
           x_shift=0, y_shift=0):
@@ -455,6 +456,7 @@ if __name__ == '__main__':
             makesvg(outfile, lines)
         else:
             output = makegcode(lines)
+            output = "\n".join(output) + "\n"
             f = open(outfile, "w")
             f.write(output)
             f.close()

@@ -235,8 +235,8 @@ class Line(object):
         # now we draw a box from the tangent points at the same slope as the
         # line, r away.  If the point center is inside that box, it touches the
         # line.
-        lrads = math.atan(self.xyslope)
-        rrads = math.atan(self.xyslope ** -1)
+        lrads = math.atan2(self.xyrise, self.xyrun)
+        rrads = math.atan2(self.xyrun, self.xyrise)
 
     def crossesZ(self, z):
         #if self.xy_min.z == z or self.xy_max.z == z:

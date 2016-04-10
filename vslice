@@ -413,6 +413,10 @@ if __name__ == '__main__':
             nextlines = []
         print("nextlines: %d" % (len(nextlines),))
 
+        if line in nextlines:
+            nextlines.remove(line)
+        if line.reverse in nextlines:
+            nextlines.remove(line.reverse)
         l = len(nextlines)
         if l == 0:
             print("%s has no right side connection (%d left)" % (line,

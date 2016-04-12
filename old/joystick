@@ -3,17 +3,18 @@
 import os
 import sys
 import string
+from decimal import Decimal as _Decimal
 
 class GCodeFormatter(object):
     def __getattribute__(self, name):
         _attrs = {
-            'x': ['X', '_float'],
-            'y': ['Y', '_float'],
-            'z': ['Z', '_float'],
+            'x': ['X', '_Decimal'],
+            'y': ['Y', '_Decimal'],
+            'z': ['Z', '_Decimal'],
             'f': ['F', '_int'],
             }
 
-        def _float(self, f):
+        def _Decimal(self, f):
             return "%0.6f" % (f,)
 
         def _int(self, i):
@@ -24,8 +25,8 @@ class GCodeFormatter(object):
 
         if name == '_int':
             return _int
-        if name == '_float':
-            return _float
+        if name == '_Decimal':
+            return _Decimal
 
         try:
             def tmp(value):
@@ -176,16 +177,16 @@ class Wasteboard(object):
         (tosser, line) = line.split(':', maxsplit=1)
         mpos=[0,0,0]
         (mpos[0],mpos[1],mpos[2],line) = line.split(',', maxsplit=3)
-        self.mpos._x = float(mpos[0])
-        self.mpos._y = float(mpos[1])
-        self.mpos._z = float(mpos[2])
+        self.mpos._x = _Decimal(mpos[0])
+        self.mpos._y = _Decimal(mpos[1])
+        self.mpos._z = _Decimal(mpos[2])
 
         wpos=[0,0,0]
         (tosser, line) = line.split(':', maxsplit=1)
         (wpos[0],wpos[1],wpos[2]) = line.split(',', maxsplit=2)
-        self.wpos._x = float(wpos[0])
-        self.wpos._y = float(wpos[1])
-        self.wpos._z = float(wpos[2])
+        self.wpos._x = _Decimal(wpos[0])
+        self.wpos._y = _Decimal(wpos[1])
+        self.wpos._z = _Decimal(wpos[2])
 
         #self.command("G92 X150 Y150 Z30")
         #self._x = 150

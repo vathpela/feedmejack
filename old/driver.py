@@ -8,6 +8,7 @@ import sys
 import signal
 import time
 import traceback
+from decimal import Decimal as _Decimal
 
 import pdb
 
@@ -543,14 +544,14 @@ class Mill(object):
             (tosser, line) = line.split(':', maxsplit=1)
             mpos=[0,0,0]
             (mpos[0],mpos[1],mpos[2],line) = line.split(',', maxsplit=3)
-            self.mpos = Position(name="MPos", x=float(mpos[0]),
-                    y=float(mpos[1]), z=float(mpos[2]))
+            self.mpos = Position(name="MPos", x=_Decimal(mpos[0]),
+                    y=_Decimal(mpos[1]), z=_Decimal(mpos[2]))
 
             wpos=[0,0,0]
             (tosser, line) = line.split(':', maxsplit=1)
             (wpos[0],wpos[1],wpos[2]) = line.split(',', maxsplit=2)
-            self.wpos = Position(name="WPos", x=float(wpos[0]),
-                    y=float(wpos[1]), z=float(wpos[2]))
+            self.wpos = Position(name="WPos", x=_Decimal(wpos[0]),
+                    y=_Decimal(wpos[1]), z=_Decimal(wpos[2]))
 
             if self.screen.status_updates:
                 self.screen.status(status, self.wpos)
@@ -620,18 +621,18 @@ class Mill(object):
                 found_bracket = True
                 response = response[1:-1]
                 if response.startswith("TLO:"):
-                    self.grbl_params['TLO'] = float(response[4:])
+                    self.grbl_params['TLO'] = _Decimal(response[4:])
                 elif response.startswith("PRB:"):
                     tmp,dunno = response[4:].split(':')
                     xyz = tmp.split(',')
-                    pos = Position(name=response[:3], x=float(xyz[0]),
-                            y=float(xyz[1]), z=float(xyz[2]))
+                    pos = Position(name=response[:3], x=_Decimal(xyz[0]),
+                            y=_Decimal(xyz[1]), z=_Decimal(xyz[2]))
                     self.grbl_params[response[:3]] = {"Pos":pos,
                                                       "Dunno": dunno}
                 else:
                     xyz = response[4:].split(',')
-                    pos = Position(name=response[:3], x=float(xyz[0]),
-                            y=float(xyz[1]), z=float(xyz[2]))
+                    pos = Position(name=response[:3], x=_Decimal(xyz[0]),
+                            y=_Decimal(xyz[1]), z=_Decimal(xyz[2]))
                     self.grbl_params[response[:3]] = pos
             else:
                 self._handle_response(response)

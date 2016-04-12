@@ -5,6 +5,7 @@ import feedmejack as fmj
 import pdb
 import pprint
 import time
+from decimal import Decimal as _Decimal
 
 def frange(x, y, jump):
     while x < y:
@@ -126,16 +127,17 @@ def make_svg(output, lines):
 
     dwg = svgwrite.Drawing(output, size=(300, 300))
     for line in lines:
-        lx = line.xy_min.x
-        ly = line.xy_min.y
-        rx = line.xy_max.x
-        ry = line.xy_max.y
+        lx = float(line.xy_min.x)
+        ly = float(line.xy_min.y)
+        rx = float(line.xy_max.x)
+        ry = float(line.xy_max.y)
 
         l = dwg.line((lx, ly), (rx, ry),
                      stroke=svgwrite.rgb(line.color[0], line.color[1], line.color[2], '%'))
         dwg.add(l)
     dwg.save()
 
+coordcache = {}
 scalecache = {}
 
 def scale(vertex, lower, upper, min_z, minimum=0, maximum=300,
@@ -148,13 +150,32 @@ def scale(vertex, lower, upper, min_z, minimum=0, maximum=300,
 
     #print("m: %f a: %f" % (m, a))
 
-    x = (vertex.x + x_shift + a) * m
-    y = (vertex.y + y_shift + a) * m
-    z = (vertex.z + (0 - min_z) + a) * m
+    def prettify(n, m=10000):
+        return _Decimal(int(n * m)) / m
 
-    x -= x % 0.0001
-    y -= y % 0.0001
-    z -= z % 0.0001
+    x = prettify(vertex.x)
+    y = prettify(vertex.y)
+    z = prettify(vertex.z)
+
+    if not x in coordcache:
+        coordcache[x] = x
+    x = coordcache[x]
+
+    if not y in coordcache:
+        coordcache[y] = y
+    y = coordcache[y]
+
+    if not z in coordcache:
+        coordcache[z] = z
+    z = coordcache[z]
+
+    x = _Decimal((x + x_shift + a) * m)
+    y = _Decimal((y + y_shift + a) * m)
+    z = _Decimal((z + (0 - min_z) + a) * m)
+
+    x = prettify(x, 10000)
+    y = prettify(y, 10000)
+    z = prettify(z, 10000)
 
     val = fmj.xyz.XYZ(x=x, y=y, z=z)
     scalecache[vertex] = val
@@ -252,7 +273,6 @@ def do_slicing(obj, height, layer):
                             continue
                 if not starting_line:
                     print("Got to starting point, inserting lift+place+drop")
-                    print(len(points))
                     old_point = point
                     above0 = fmj.xyz.XYZ(point.x, point.y, point.z + 30)
                     line = fmj.xyz.Line(point, above0)
@@ -273,11 +293,23 @@ def do_slicing(obj, height, layer):
             else:
                 old_point = point
                 point = find_nearest_point(point, points.keys())
-                if old_point.distance(point) > 0:
+                if old_point.distance(point) > 0.0001:
                     print("Expected point %s but not finding it; using %s" % (old_point, point))
-                line = find_nearest_line(old_point, points[point])
-                del old_point
-                points[point].remove(line)
+                above0 = fmj.xyz.XYZ(point.x, point.y, point.z + 30)
+                line = fmj.xyz.Line(point, above0)
+                print("  %s" % (line,))
+                line.color = [0,0,0]
+                lines.append(line)
+                above1 = fmj.xyz.XYZ(point.x, point.y, point.z + 30)
+                line = fmj.xyz.Line(above0, above1)
+                print("  %s" % (line,))
+                line.color = [0,0,0]
+                lines.append(line)
+                line = fmj.xyz.Line(above1, point)
+                print("  %s" % (line,))
+                line.color = [0,0,0]
+                lines.append(line)
+                continue
         else:
             line = points[point].pop(0)
         if starting_line is None:
@@ -353,7 +385,7 @@ if __name__ == '__main__':
     ys = []
     for line in infile.readlines():
         if line[0] == 'v':
-            xyz = [float(x) for x in line[2:].split(' ')]
+            xyz = [_Decimal(x) for x in line[2:].split(' ')]
             if min_xyz is None or xyz[0] < min_xyz:
                 min_xyz = xyz[0]
             if max_xyz is None or xyz[0] > max_xyz:
@@ -365,8 +397,8 @@ if __name__ == '__main__':
             if min_z is None or xyz[2] < min_z:
                 min_z = xyz[2]
             vertices.append(xyz)
-            xs.append(float(xyz[0]))
-            ys.append(float(xyz[1]))
+            xs.append(_Decimal(xyz[0]))
+            ys.append(_Decimal(xyz[1]))
         elif line[0] == 'f':
             indices = [int(x) for x in line[2:].split(' ')]
             faces.append(indices)

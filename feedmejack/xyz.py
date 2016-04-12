@@ -2,12 +2,18 @@
 
 import pdb
 import math
+from decimal import Decimal as _Decimal
+import decimal
 
 class XY(object):
     def __init__(self, x, y, r=0):
-        self.x = float(x)
-        self.y = float(y)
-        self.r = float(r)
+        self.x = self._clean(x)
+        self.y = self._clean(y)
+        self.r = self._clean(r)
+
+    def _clean(self, n):
+        n = int(n * 100000)
+        return _Decimal(n) / 100000
 
     def __add__(self, other):
         return XY(self.x + other.x, self.y + other.y)
@@ -17,14 +23,14 @@ class XY(object):
 
     def __str__(self):
         fmt = "XY("
-        if int(self.x) == float(self.x):
+        if int(self.x) == _Decimal(self.x):
             fmt += "%d,"
         else:
-            fmt += "%0.2f,"
-        if int(self.y) == float(self.y):
+            fmt += "%s,"
+        if int(self.y) == _Decimal(self.y):
             fmt += "%d)"
         else:
-            fmt += "%0.2f)"
+            fmt += "%s)"
 
         return fmt % (self.x, self.y)
 
@@ -68,18 +74,23 @@ class XY(object):
         return math.sqrt(x+y)
 
     def slope(self, other):
-        return (other.y - self.y) / (other.x - self.x)
+        ret = (other.y - self.y) / (other.x - self.x)
+        return ret
 
     def __hash__(self):
         return hash((self.x, self.y, self.r))
 
 class XYZ(object):
     def __init__(self, x, y, z, r=0):
-        self.xy = XY(x,y)
-        self.x = float(x)
-        self.y = float(y)
-        self.z = float(z)
-        self.r = float(r)
+        self.x = self._clean(x)
+        self.y = self._clean(y)
+        self.z = self._clean(z)
+        self.r = self._clean(r)
+        self.xy = XY(self.x, self.y)
+
+    def _clean(self, n):
+        n = int(n * 100000)
+        return _Decimal(n) / 100000
 
     def __add__(self, other):
         return XYZ(self.x + other.x, self.y + other.y, other.z)
@@ -89,18 +100,18 @@ class XYZ(object):
 
     def __str__(self):
         fmt = "XYZ("
-        if int(self.x) == float(self.x):
+        if int(self.x) == _Decimal(self.x):
             fmt += "%d,"
         else:
-            fmt += "%0.3f,"
-        if int(self.y) == float(self.y):
+            fmt += "%s,"
+        if int(self.y) == _Decimal(self.y):
             fmt += "%d,"
         else:
-            fmt += "%0.3f,"
-        if int(self.z) == float(self.z):
+            fmt += "%s,"
+        if int(self.z) == _Decimal(self.z):
             fmt += "%d)"
         else:
-            fmt += "%0.3f)"
+            fmt += "%s)"
 
         return fmt % (self.x, self.y, self.z)
 
@@ -182,6 +193,10 @@ class Line(object):
         self.xy_max = xy_max
         self.color = None
 
+    def _clean(self, n):
+        n = int(n * 100000)
+        return _Decimal(n) / 100000
+
     def __str__(self):
         return "%s(%s,%s)" % (self._strname, self.xy_min, self.xy_max)
 
@@ -227,15 +242,20 @@ class Line(object):
     # rise is in distance units
     @property
     def xyrise(self):
-        return self.xy_max.y - self.xy_min.y
+        return self.ymax - self.ymin
     # run is in distance units
     @property
     def xyrun(self):
-        return self.xy_max.x - self.xy_min.x
+        return self.xmax - self.xmin
     # m is a unitless ratio
     @property
     def xym(self):
-        return self.xyrise / self.xyrun
+        try:
+            return self.xyrise / self.xyrun
+        except decimal.DivisionByZero:
+            pdb.set_trace()
+            pass
+            pass
     # theta is in degrees
     @property
     def xytheta(self):
@@ -343,7 +363,7 @@ class Line(object):
         # point c's z1
 
         dz = self.dzAtZ(z)
-        dx = dz / self.xztan
+        dx = float(dz) / self.xztan
         # print("%s dx = dz / tan(theta[xz]) = %f / tan(%f) = %f / %f = %f" %
         #        (indent, dz, self.xztheta, dz, self.xztan, dx))
         return dx
@@ -355,7 +375,7 @@ class Line(object):
         # point c's z1
 
         dz = self.dzAtZ(z)
-        dy = dz / self.yztan
+        dy = float(dz) / self.yztan
         # print("%s dy = dz / tan(theta[yz]) = %f / tan(%f) = %f / %f = %f" %
         #        (indent, dz, self.yztheta, dz, self.yztan, dy))
         return dy
@@ -384,7 +404,7 @@ class Line(object):
 
         # just sanity checking - though as a note, the only time I've seen this
         # differ from our math.$TRIGFNS() version below, it's been enough to
-        # flip ths sign of the float, but still the value is basically 0.
+        # flip ths sign of a float, but still the value is basically 0.
         # "Error"s look something like:
         #   lineAtZ: Line(XYZ(163.576,13.477,332.267),XYZ(159.657,11.456,334.322))
         #   crosses 333.998378
@@ -424,19 +444,19 @@ class Line(object):
         #
         # To be honest, if every calculation I ever did came within
         # -2e-14..3e-14 *percent* of the final answer (which is obviously just
-        # round-off error in the float), I'd be really, really happy about it.
+        # round-off error in a float), I'd be really, really happy about it.
 
         xest = self.xmin + (self.xrange * pdz)
         yest = self.ymin + (self.yrange * pdz)
 
         dx = self.dxAtZ(z)
-        x = self.xmin + dx
+        x = self.xmin + _Decimal(dx)
 
         msg += "%s dx = %f\n" % (indent, dx)
         msg += "%s FINAL X: %s\n" % (indent, x)
 
         dy = self.dyAtZ(z)
-        y = self.ymin + dy
+        y = self.ymin + _Decimal(dy)
 
         msg += "%s dy = %s\n" % (indent, dy)
         msg += "%s FINAL Y: %s\n" % (indent, y)
@@ -454,6 +474,7 @@ class Line(object):
             print("%s y error is %s pct" % (indent, errbar(yest, y)))
 
         def inside(val, l, r):
+            val = self._clean(val)
             if l < r:
                 minimum = l
                 maximum = r
@@ -465,12 +486,14 @@ class Line(object):
             return True
 
         if not inside(x, self.xmin, self.xmax):
-            raise ValueError("%s is not in range %s..%s" % (val, self.xmin, self.xmax))
+            raise ValueError("%s is not in range %s..%s" % (x, self.xmin, self.xmax))
         if not inside(y, self.ymin, self.ymax):
-            raise ValueError("%s is not in range %s..%s" % (val, self.ymin, self.ymax))
+            raise ValueError("%s is not in range %s..%s" % (x, self.ymin, self.ymax))
         if not inside(z, self.zmin, self.zmax):
-            raise ValueError("%s is not in range %s..%s" % (val, self.zmin, self.zmax))
-        return Point(x,y,z)
+            raise ValueError("%s is not in range %s..%s" % (x, self.zmin, self.zmax))
+        return Point(self._clean(x),
+                     self._clean(y),
+                     self._clean(z))
 
     @property
     def reverse(self):
@@ -530,7 +553,7 @@ class Face(object):
     def __repr__(self):
         return str(self)
 
-    def zintersection(self, z:float):
+    def zintersection(self, z:_Decimal):
         min_z = min([v.z for v in self.vertices])
         max_z = max([v.z for v in self.vertices])
         if min_z > z or max_z < z:
@@ -567,7 +590,7 @@ class Face(object):
     def minX(self):
         return min([v.x for v in self.vertices])
 
-    def withinX(self, left: float, right: float):
+    def withinX(self, left:_Decimal, right:_Decimal):
         return left >= self.minX and right <= self.maxX
 
     @property
@@ -578,7 +601,7 @@ class Face(object):
     def minY(self):
         return min([v.y for v in self.vertices])
 
-    def withinY(self, front: float, back: float):
+    def withinY(self, front:_Decimal, back:_Decimal):
         return front >= self.minY and back <= self.maxY
 
     @property
@@ -670,7 +693,7 @@ class Face(object):
             raise RuntimeError("mismatched points (%d) vs crossers (%d)" %
                     (2 - len(points), len(crossers)))
 
-        slopes=[c.xym for c in crossers]
+        # slopes=[c.xym for c in crossers]
         for crosser in crossers:
             # print("%s crosser: %s" % (indent, crosser))
             point = crosser.atZ(z)
@@ -699,7 +722,7 @@ class Object(object):
         self._faces.add(face)
         return face
 
-    def xSlice(self, x:float):
+    def xSlice(self, x:_Decimal):
         new = Object()
         for face in self.faces:
             if face.crossesX(x):
@@ -710,7 +733,7 @@ class Object(object):
                 new.addFace(*vertices)
         return new
 
-    def ySlice(self, y:float):
+    def ySlice(self, y:_Decimal):
         new = Object()
         for face in self.faces:
             if face.crossesY(y):
@@ -721,7 +744,7 @@ class Object(object):
                 new.addFace(*vertices)
         return new
 
-    def zSlice(self, z:float):
+    def zSlice(self, z:_Decimal):
         new = Object()
         for face in self.faces:
             if face.crossesZ(z):

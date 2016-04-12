@@ -2,6 +2,7 @@
 
 import sys
 import os
+from decimal import Decimal as _Decimal
 
 def frange(x, y, step):
     if x > y:
@@ -52,9 +53,9 @@ if __name__ == '__main__':
             x="X%0.03f", y="Y%0.03f", i="I%0.03f", j="J%0.03f", f='F%d',
             z="Z%0.03f")
 
-    sx=float(sys.argv[1])
-    sy=float(sys.argv[2])
-    radius=float(sys.argv[3])
+    sx=_Decimal(sys.argv[1])
+    sy=_Decimal(sys.argv[2])
+    radius=_Decimal(sys.argv[3])
     if radius < 0:
         left = True
         radius = -radius
@@ -66,9 +67,9 @@ if __name__ == '__main__':
     stepz=None
 
     if l == 7:
-        sz=float(sys.argv[4])
-        endz=float(sys.argv[5])
-        stepz=float(sys.argv[6])
+        sz=_Decimal(sys.argv[4])
+        endz=_Decimal(sys.argv[5])
+        stepz=_Decimal(sys.argv[6])
 
     print("%s" % (g0.string(z=40),))
     print("%s" % (g0.string(x=sx, y=sy),))

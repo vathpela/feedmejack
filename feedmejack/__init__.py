@@ -17,6 +17,7 @@ import termios as _termios
 import time as _time
 import signal as _signal
 import sys as _sys
+from decimal import Decimal as _Decimal
 
 class Timeout(Exception):
     pass
@@ -351,7 +352,7 @@ class Mill(object):
                 found_bracket = True
                 response = response[1:-1]
                 if response.startswith("TLO:"):
-                    self.grbl_params['TLO'] = float(response[4:])
+                    self.grbl_params['TLO'] = _Decimal(response[4:])
                 elif response.startswith("PRB:"):
                     tmp,dunno = response[4:].split(':')
                     pos = tmp.split(',')

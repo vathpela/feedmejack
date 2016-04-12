@@ -180,12 +180,18 @@ class Line(object):
     def __init__(self, xy_min, xy_max):
         self.xy_min = xy_min
         self.xy_max = xy_max
+        self.color = None
 
     def __str__(self):
         return "%s(%s,%s)" % (self._strname, self.xy_min, self.xy_max)
 
     def __repr__(self):
         return str(self)
+
+    @property
+    def points(self):
+        yield self.xy_min
+        yield self.xy_max
 
     @property
     def xmin(self):
@@ -354,7 +360,6 @@ class Line(object):
         #        (indent, dz, self.yztheta, dz, self.yztan, dy))
         return dy
 
-
     def atZ(self, z):
         indent = "      AtZ:"
 
@@ -469,7 +474,9 @@ class Line(object):
 
     @property
     def reverse(self):
-        return Line(self.xy_max, self.xy_min)
+        line = Line(self.xy_max, self.xy_min)
+        line.color = self.color
+        return line
 
 class VertexLibrary(object):
     # This would be better as a python 3.5 deque.
@@ -614,7 +621,7 @@ class Face(object):
         return True
 
     def __hash__(self):
-        return Object.__hash__(self)
+        return object.__hash__(self)
 
     def crossesZ(self, z):
         for line in self.lines:
@@ -642,7 +649,7 @@ class Face(object):
         for line in self.lines:
             if line.crossesZ(z):
                 crossers.append(line)
-                print("%s %s crosses %f" % (indent, line, z))
+                # print("%s %s crosses %f" % (indent, line, z))
 
         for line in crossers:
             if line.xy_min.z == z or line.xy_max.z == z:
@@ -682,40 +689,58 @@ class Face(object):
 class Object(object):
     def __init__(self):
         self._vlib = VertexLibrary()
-        self.faces = set()
+        self._faces = set()
 
     def addVertex(self, vertex: XYZ):
-        self._vlib.get(vertex)
+        return self._vlib.get(vertex)
 
     def addFace(self, *vertices: int):
         face = Face(library=self._vlib, vertices=vertices)
-        self.faces.add(face)
+        self._faces.add(face)
+        return face
 
-    def xSlice(self, left: float, right:float):
+    def xSlice(self, x:float):
+        new = Object()
         for face in self.faces:
-            if face.withinX(left=left, right=right):
-                yield face
+            if face.crossesX(x):
+                vertices = []
+                for v in face.vertices:
+                    i = new.addVertex(v)
+                    vertices.append(self._vlib[i])
+                new.addFace(*vertices)
+        return new
 
-    def ySlice(self, front: float, back:float):
+    def ySlice(self, y:float):
+        new = Object()
         for face in self.faces:
-            if face.withinY(front=front, back=back):
-                yield face
+            if face.crossesY(y):
+                vertices = []
+                for v in face.vertices:
+                    i = new.addVertex(v)
+                    vertices.append(i)
+                new.addFace(*vertices)
+        return new
 
     def zSlice(self, z:float):
-        lib = VertexLibrary()
+        new = Object()
         for face in self.faces:
             if face.crossesZ(z):
                 vertices = []
                 for v in face.vertices:
-                    i = lib.append(v)
+                    i = new.addVertex(v)
                     vertices.append(i)
-                    vertices.reverse()
-                yield Face(lib, vertices=vertices)
+                new.addFace(*vertices)
+        return new
 
     @property
     def zRange(self):
         zs = [v.z for v in self._vlib]
         return (min(zs), max(zs))
+
+    @property
+    def faces(self):
+        for face in self._faces:
+            yield face
 
 __all__ = ['XY', 'XYZ', 'Point', 'VertexLibrary', 'Face', 'Object']
 

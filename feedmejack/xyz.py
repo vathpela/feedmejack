@@ -12,6 +12,7 @@ class XY(object):
         self.r = self._clean(r)
 
     def _clean(self, n):
+        n = float(n)
         n = int(n * 100000)
         return _Decimal(n) / 100000
 
@@ -89,6 +90,7 @@ class XYZ(object):
         self.xy = XY(self.x, self.y)
 
     def _clean(self, n):
+        n = float(n)
         n = int(n * 100000)
         return _Decimal(n) / 100000
 

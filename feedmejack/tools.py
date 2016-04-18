@@ -47,6 +47,9 @@ class Tool(object):
 class EndMill(Tool):
     _strname = "EndMill"
 
+class CuttingMill(Tool):
+    _strname = "CuttingMill"
+
 tools = [
         EndMill("case B", "black 0.75mm", 0.75, 9.5, 20),
         EndMill("case A", "white 1.2mm", 1.2, 10, 19),
@@ -60,6 +63,7 @@ tools = [
         EndMill("case A", "dark yellow 0.55mm", 0.55, 6, 19.9),
         EndMill("case A", "light green 0.35mm", 0.35, 4.75, 19.8),
         EndMill("free", "1/4in Onrsud", 6.35, 28, 42),
+        CuttingMill("cutter", "1/8in cutter", 3.175, 14, 22.5),
         ]
 
 def find_tool(max_width=None, min_length=None, tool_class=None):

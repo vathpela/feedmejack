@@ -2,6 +2,7 @@ class GCodeMaker(object):
     _cmd = ""
     _order = []
     _tmpls = []
+    _target_order = []
 
     def __init__(self, **data):
         self.cmd = self._cmd
@@ -48,12 +49,44 @@ class GCodeMaker(object):
 
         return "%s" % (s,)
 
+    def strip(self, *args, **kwds):
+        r = str(self)
+        return r.strip(*args, **kwds)
+
     def print(self, **args):
         s = self.string(**args)
         print("%s" % (s,))
 
     def go(self, **args):
         driver.exec(self.string(**args))
+
+    @property
+    def target(self):
+        args = self._data
+
+        s = ""
+        for x in self._target_order:
+            if isinstance(x, dict):
+                for k,vals in x.items():
+                    for v in vals:
+                        try:
+                            s += " %s" % (self._tmpls[k][v] % args[k][v])
+                        except KeyError:
+                            pass
+                    break
+            elif isinstance(x, list) or isinstance(x, tuple):
+                for i in range(1, len(x)):
+                    try:
+                        s += " %s" % (self._tmpls[x[i]] % args[x[i]])
+                    except KeyError:
+                        pass
+            else:
+                try:
+                    s += " %s" % (self._tmpls[x] % args[x])
+                except KeyError:
+                    pass
+
+        return "%s" % (s,)
 
     def estimate_final_pos(self, **args):
         pass
@@ -73,6 +106,7 @@ class G0(GCodeMaker):
     _tmpls = {'f':"F%0.03f",
                'end': { 'x':"X%0.03f", 'y': "Y%0.03f", 'z': "Z%0.03f" }
              }
+    _target_order = [{'end': ['x', 'y', 'z']}]
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)
@@ -83,6 +117,7 @@ class G1(GCodeMaker):
     _tmpls = {'f':"F%0.03f",
                'end': { 'x':"X%0.03f", 'y': "Y%0.03f", 'z': "Z%0.03f" }
              }
+    _target_order = [{'end': ['x', 'y', 'z']}]
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)
@@ -92,6 +127,7 @@ class G2(GCodeMaker):
     _order = ['f', 'x', 'y', 'z', 'i', 'j']
     _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f",
             'f':"F%0.03f", 'i':"I%0.03f",'j':'J%0.03f'}
+    _target_order = ['x', 'y', 'z']
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)
@@ -101,6 +137,7 @@ class G3(GCodeMaker):
     _order = ['x', 'y', 'z']
     _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f",
             'f':"F%0.03f", 'i':"I%0.03f",'j':'J%0.03f'}
+    _target_order = ['x', 'y', 'z']
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)

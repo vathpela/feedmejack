@@ -491,7 +491,7 @@ class Line(object):
             else:
                 minimum = r
                 maximum = l
-            if val < minimum or val > maximum:
+            if val < minimum - _Decimal(0.01) or val > maximum + _Decimal(0.01):
                 return False
             return True
 

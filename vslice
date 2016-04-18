@@ -140,18 +140,49 @@ def make_svg(output, lines):
 coordcache = {}
 scalecache = {}
 
-def scale(vertex, lower, upper, min_z, minimum=0, maximum=300,
+once=False
+def scale(vertex, min_x, max_x, min_y, max_y, min_z, minimum=0, maximum=300,
           x_shift=0, y_shift=0):
     if vertex in scalecache:
         return scalecache[vertex]
-    a = minimum - lower
 
-    m = (maximum - minimum) / (upper - lower)
+    upper = max(max_x, max_y)
+    lower = min(min_x, min_y)
+    upper = _Decimal(upper)
+    lower = _Decimal(lower)
+    maximum = _Decimal(maximum)
+    minimum = _Decimal(minimum)
 
-    #print("m: %f a: %f" % (m, a))
+    # print("minimum: %f maximum: %f" % (minimum, maximum))
+    m = 300 / (upper - lower)
 
-    def prettify(n, m=10000):
-        return _Decimal(int(n * m)) / m
+    ax = _Decimal(150) - ((m * min_x + m * max_x) / 2)
+    ay = _Decimal(150) - ((m * min_y + m * max_y) / 2)
+
+    m *= _Decimal(maximum - minimum) / _Decimal(300)
+
+    # middle_value = (m * upper - m * lower)
+    #a = middle_limit - middle_value
+
+    # a = middle - (m * upper - m * lower)
+    #a = _Decimal(0)
+
+    #if m * lower < 0:
+    #    a = _Decimal(0) - m * lower
+
+    #a = (_Decimal(300) - a) / 2
+
+    # a = ((maximum - minimum) - (upper - lower)) / 2
+    # a += 150
+    # a = (upper - lower) / 2 - (maximum - minimum) / 2
+
+
+    def prettify(n, m='1.000000'):
+        n = _Decimal(n)
+        m = _Decimal(m)
+        n = n.normalize()
+        n = n.quantize(m)
+        return n
 
     x = prettify(vertex.x)
     y = prettify(vertex.y)
@@ -169,13 +200,25 @@ def scale(vertex, lower, upper, min_z, minimum=0, maximum=300,
         coordcache[z] = z
     z = coordcache[z]
 
-    x = _Decimal((x + x_shift + a) * m)
-    y = _Decimal((y + y_shift + a) * m)
-    z = _Decimal((z + (0 - min_z) + a) * m)
+    x = _Decimal(x).fma(m, ax)
+    y = _Decimal(y).fma(m, ay)
+    z = _Decimal(z).fma(m, 0 - min_z)
 
-    x = prettify(x, 10000)
-    y = prettify(y, 10000)
-    z = prettify(z, 10000)
+    x_shift = _Decimal(x_shift)
+    y_shift = _Decimal(y_shift)
+    x = prettify(x + x_shift)
+    y = prettify(y + y_shift)
+    z = prettify(z)
+
+    global once
+    if not once:
+        print("m:%f ax:%f ay:%f" % (m, ax, ay))
+        print("m*xrange:%f..%f\nm*yrange:%f..%f" %
+                (m*min_x,m*max_x,m*min_y,m*max_y))
+        print("m*xrange+ax:%f..%f\nm*yrange+ay:%f..%f" %
+                (m*min_x+ax,m*max_x+ax,m*min_y+ay,m*max_y+ay))
+        once=True
+
 
     val = fmj.xyz.XYZ(x=x, y=y, z=z)
     scalecache[vertex] = val
@@ -201,7 +244,7 @@ def find_nearest_line(origin, lines):
     return nearest
 
 
-def do_slicing(obj, height, layer):
+def do_slicing(obj, height, layer, tool):
     r = obj.zRange
 
     slices = list(frange(r[0], r[1], height))
@@ -359,6 +402,18 @@ if __name__ == '__main__':
     else:
         outfile = None
 
+    if "-c" in sys.argv:
+        i = sys.argv.index("-c")
+        sys.argv[i] = "--center"
+    if "--center" in sys.argv:
+        i = sys.argv.index("--center")
+        sys.argv.pop(i)
+        center_x = _Decimal(sys.argv.pop(i))
+        center_y = _Decimal(sys.argv.pop(i))
+    else:
+        center_x = 150
+        center_y = 150
+
     if "--svg" in sys.argv:
         sys.argv.remove("--svg")
         fmt = 'svg'
@@ -375,8 +430,13 @@ if __name__ == '__main__':
     except:
         height = 4
 
-    min_xyz = None
-    max_xyz = None
+    # tool = list(fmj.tools.find_tool(max_width=6.35, min_length=27))[0]
+    tool = list(fmj.tools.find_tool(max_width=3.175, min_length=13))[0]
+
+    min_x = None
+    max_x = None
+    min_y = None
+    max_y = None
     min_z = None
     obj = fmj.xyz.Object()
     vertices = []
@@ -386,14 +446,14 @@ if __name__ == '__main__':
     for line in infile.readlines():
         if line[0] == 'v':
             xyz = [_Decimal(x) for x in line[2:].split(' ')]
-            if min_xyz is None or xyz[0] < min_xyz:
-                min_xyz = xyz[0]
-            if max_xyz is None or xyz[0] > max_xyz:
-                max_xyz = xyz[0]
-            if min_xyz is None or xyz[1] < min_xyz:
-                min_xyz = xyz[1]
-            if max_xyz is None or xyz[1] > max_xyz:
-                max_xyz = xyz[1]
+            if min_x is None or xyz[0] < min_x:
+                min_x = xyz[0]
+            if max_x is None or xyz[0] > max_x:
+                max_x = xyz[0]
+            if min_y is None or xyz[1] < min_y:
+                min_y = xyz[1]
+            if max_y is None or xyz[1] > max_y:
+                max_y = xyz[1]
             if min_z is None or xyz[2] < min_z:
                 min_z = xyz[2]
             vertices.append(xyz)
@@ -403,16 +463,23 @@ if __name__ == '__main__':
             indices = [int(x) for x in line[2:].split(' ')]
             faces.append(indices)
 
-    avgx = sum(xs) / len(xs)
-    avgy = sum(ys) / len(ys)
-    del xs
-    del ys
-    x_shift = 150 - avgx
-    y_shift = 150 - avgy
-    print("scale: range is %f..%f, z offset %f" % (min_xyz, max_xyz, 0 - min_z))
+    print("min(xs): %f max(xs): %f" % (min(xs),max(xs)))
+    print("min(ys): %f max(ys): %f" % (min(ys),max(ys)))
+    x_shift = (center_x - 150)
+    y_shift = (center_y - 150)
+    # middlex = (max(xs) + min(xs)) / 2
+    # middley = (max(ys) + min(ys)) / 2
+    # x_shift = _Decimal((150 - center_x) - (avgx / 2)) / _Decimal(2)
+    # y_shift = _Decimal((150 - center_y) - (avgy / 2)) / _Decimal(2)
+    # x_shift = (center_x - 150) - middlex
+    # y_shift = (center_y - 150) - middley
+    #print("middlex: %f middley: %f" % (middlex, middley))
+    print("x_shift: %f y_shift: %f " % (x_shift, y_shift))
+    print("scale: xrange:%f..%f yrange:%f..%f z offset %f" % (min_x, max_x,
+        min_y, max_y, 0 - min_z))
     for xyz in vertices:
         old = fmj.xyz.XYZ(*xyz)
-        new = scale(old, min_xyz, max_xyz, min_z, 90, 210,
+        new = scale(old, min_x, max_x, min_y, max_y, min_z, 90, 210,
                     x_shift=x_shift, y_shift=y_shift)
         # print("scale(%s) -> %s" % (old, new))
         obj.addVertex(new)
@@ -424,7 +491,7 @@ if __name__ == '__main__':
     slices = list(frange(r[0], r[1], height))
     print("layer %d is %f" % (layer, slices[layer]))
 
-    lines = do_slicing(obj, height, layer)
+    lines = do_slicing(obj, height, layer, tool)
     del obj
 
     if 0:

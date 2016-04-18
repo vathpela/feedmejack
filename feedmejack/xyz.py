@@ -12,9 +12,10 @@ class XY(object):
         self.r = self._clean(r)
 
     def _clean(self, n):
-        n = float(n)
-        n = int(n * 100000)
-        return _Decimal(n) / 100000
+        n = _Decimal(n)
+        n = n.normalize()
+        n = n.quantize(_Decimal('1.000000'))
+        return n
 
     def __add__(self, other):
         return XY(self.x + other.x, self.y + other.y)
@@ -90,9 +91,10 @@ class XYZ(object):
         self.xy = XY(self.x, self.y)
 
     def _clean(self, n):
-        n = float(n)
-        n = int(n * 100000)
-        return _Decimal(n) / 100000
+        n = _Decimal(n)
+        n = n.normalize()
+        n = n.quantize(_Decimal('1.000000'))
+        return n
 
     def __add__(self, other):
         return XYZ(self.x + other.x, self.y + other.y, other.z)
@@ -196,8 +198,10 @@ class Line(object):
         self.color = None
 
     def _clean(self, n):
-        n = int(n * 100000)
-        return _Decimal(n) / 100000
+        n = _Decimal(n)
+        n = n.normalize()
+        n = n.quantize(_Decimal('1.000000'))
+        return n
 
     def __str__(self):
         return "%s(%s,%s)" % (self._strname, self.xy_min, self.xy_max)

@@ -150,6 +150,13 @@ class Mill(object):
     def _handle_error(self, response):
         self.comms.write("!\x18\n\n\n\n")
         print("error: \"%s\"" % (response,))
+        if response == "error: Alarm lock":
+            self.reset()
+            return
+        elif response in ["error: Bad number format",
+                          "error: Expected command letter",]:
+            self.comms.write("\n")
+            return
         _pdb.set_trace()
         raise RuntimeError
 
@@ -158,8 +165,13 @@ class Mill(object):
         print("alarm: \"%s\"" % (response,))
         if response == "ALARM: Homing fail":
             self.homingfails += 1
-            if self.homingfails > 3:
-                pass
+            if self.homingfails < 3:
+                self.comms.write("\x18$X\n")
+                self.send(gcode.G55())
+                response = self.comms.readline()
+                self.get_status()
+                self.send(gcode.G1(z=self.wpos.z - 10, f=10))
+                return self._handle_response(response="")
             _sys.exit(2)
             #self.dumpqueue()
             #self.comms.write("\x18\n\n$X\n\n".encode("utf8"))
@@ -172,24 +184,29 @@ class Mill(object):
     def _handle_post_reset(self, line=None):
         try:
             if line is None:
-                line=True
-                while line is True:
+                line=False
+                while not line:
                     line = self.comms.readline()
-                    if not line.startswith("Grbl"):
-                        line = True
+                    if line.startswith("Grbl"):
+                        pass
+                    else:
+                        line = False
             try:
                 self.grbl_version = line.split(' ')[1]
             except IndexError:
-                print("line: \"%s\"" % (line,))
-                raise
-            line = True
-            while line is True:
-                line = self.comms.readline()
-                if line == "":
-                    line = True
+                print("line didn't split right: \"%s\"" % (line,))
+            self.comms.write("\n")
+            line = False
+            while not line:
+                try:
+                    line = self.comms.readline()
+                    if line == "":
+                        line = False
+                except Timeout:
+                    break
             if line.startswith("['$H'"):
-                self.comms.write("$X\n")
-                line = None
+                self.send("$X")
+                status = self.get_status()
             for x in range(0, len(self.queue)):
                 self.queue[x].sent = False
             self.comms.write("\n")
@@ -219,6 +236,8 @@ class Mill(object):
             if self.numsent > 0 and self.numsent < self.maxsent:
                 self.logresp(response)
                 self.dequeue(process_queue=process_queue)
+            else:
+                return self.get_status()
         elif response == "" or response == " ":
             pass
         elif response.startswith("<") and response.endswith(">"):
@@ -257,7 +276,7 @@ class Mill(object):
             (wpos[0],wpos[1],wpos[2]) = line.split(',', maxsplit=2)
             self.wpos = xyz.XYZ(x=wpos[0], y=wpos[1], z=wpos[2])
 
-            self.status_cb(status=status, wpos=self.wpos)
+            self.status_cb(status=status, wpos=self.wpos, mpos=self.mpos)
             return status
         return None
 
@@ -293,10 +312,13 @@ class Mill(object):
         return None
 
     def wait_for_idle(self, goal="Idle", timeout=10):
+        self.comms.callback(goal=goal)
         start = _time.monotonic()
         while True:
             try:
                 status = self.get_status()
+                self.comms.callback(goal=goal, status=self.status,
+                        mpos=self.mpos, wpos=self.wpos)
                 break
             except Timeout:
                 t = _time.monotonic()
@@ -311,7 +333,8 @@ class Mill(object):
             elif status == "Run":
                 pass
             elif status == "Idle":
-                status = goal
+                if goal == "Home":
+                    self.send("$H")
             elif status == "Hold":
                 # try to test *why* this happened? Leave it to the user and
                 # give them a continue button?
@@ -334,7 +357,8 @@ class Mill(object):
                 raise
         if status == goal:
             self.status = status
-            self.status_cb(status=self.status, wpos=self.wpos)
+            self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos,
+                           goal=goal)
 
             while True:
                 try:
@@ -370,7 +394,8 @@ class Mill(object):
 
     def setup(self):
         self.status = "Waiting for idle"
-        self.status_cb(status=self.status, wpos=self.wpos)
+        self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos,
+                       goal="Idle")
 
         while True:
             try:
@@ -389,8 +414,7 @@ class Mill(object):
         #        break
 
         self.wait_for_idle()
-        self.status_cb(status=" " * 20, wpos=self.wpos)
-        #print(" %s,%s,%s" % (self.status, self.mpos, self.wpos))
+        self.status_cb(status="Idle", wpos=self.wpos, mpos=self.mpos, goal="")
         self.get_parser_state()
         #pprint.pprint("%s" % (self.parser_state,))
         self.wait_for_idle()
@@ -401,12 +425,15 @@ class Mill(object):
 
     def home(self):
         self.status = "Waiting for idle"
-        self.status_cb(status=self.status, wpos=self.wpos)
+        self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos,
+                goal="Idle")
         self.wait_for_idle("Idle", timeout=90)
         self.comms.clear()
+        self.send("$X")
+        response = self.comms.readline()
         self.send("$H")
         self.status = "Waiting for Homing"
-        self.status_cb(status=self.status, wpos=self.wpos)
+        self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos)
         self.wait_for_idle("Home", timeout=90)
         self.send(gcode.G55())
         response = self.comms.readline()
@@ -416,11 +443,17 @@ class Mill(object):
         self._handle_response(response)
 
     def reset(self):
+        self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
         _signal.alarm(0)
+        self.comms.write("\x18$X\n")
+        self.send(gcode.G55())
+        response = self.comms.readline()
         self.comms.write("\x18")
-        self.status_cb(status="Resetting", wpos=self.wpos)
+        self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self._handle_post_reset()
+        if self.wpos.z < 10 and self.mpos.z > 90:
+            self.send(gcode.G1(z=-10,f=10))
 
 __all__ = ['gcode', 'masks', 'rasters', 'shapes', 'tools', 'tracers', \
            'xyz']

@@ -210,6 +210,10 @@ class Line(object):
         return str(self)
 
     @property
+    def length(self):
+        return self.xy_min.distance(self.xy_max)
+
+    @property
     def points(self):
         yield self.xy_min
         yield self.xy_max

@@ -12,6 +12,7 @@ class Tool(object):
         self._width = _Decimal(width)
         self._length = _Decimal(length)
         self._max_feed_rate = int(max_feed_rate)
+        self.feed_rate_limit = None
         self._z = offset
 
     def __str__(self):
@@ -38,6 +39,8 @@ class Tool(object):
 
     @property
     def max_feed_rate(self):
+        if self.feed_rate_limit:
+            return min(self.feed_rate_limit, self._max_feed_rate)
         return self._max_feed_rate
 
     @property

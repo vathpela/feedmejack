@@ -5,17 +5,29 @@ import math
 from decimal import Decimal as _Decimal
 import decimal
 
+def _clean(val):
+        val = _Decimal(val)
+        val = val.normalize()
+        val = val.quantize(_Decimal("1.00000"))
+        return val
+
+def _inside(val, l, r):
+    val = _clean(val)
+    if l < r:
+        minimum = l
+        maximum = r
+    else:
+        minimum = r
+        maximum = l
+    if val < minimum - _Decimal(0.01) or val > maximum + _Decimal(0.01):
+        return False
+    return True
+
 class XY(object):
     def __init__(self, x, y, r=0):
-        self.x = self._clean(x)
-        self.y = self._clean(y)
-        self.r = self._clean(r)
-
-    def _clean(self, n):
-        n = _Decimal(n)
-        n = n.normalize()
-        n = n.quantize(_Decimal('1.000000'))
-        return n
+        self.x = _clean(x)
+        self.y = _clean(y)
+        self.r = _clean(r)
 
     def __add__(self, other):
         return XY(self.x + other.x, self.y + other.y)
@@ -84,17 +96,11 @@ class XY(object):
 
 class XYZ(object):
     def __init__(self, x, y, z, r=0):
-        self.x = self._clean(x)
-        self.y = self._clean(y)
-        self.z = self._clean(z)
-        self.r = self._clean(r)
+        self.x = _clean(x)
+        self.y = _clean(y)
+        self.z = _clean(z)
+        self.r = _clean(r)
         self.xy = XY(self.x, self.y)
-
-    def _clean(self, n):
-        n = _Decimal(n)
-        n = n.normalize()
-        n = n.quantize(_Decimal('1.000000'))
-        return n
 
     def __add__(self, other):
         return XYZ(self.x + other.x, self.y + other.y, other.z)
@@ -196,12 +202,6 @@ class Line(object):
         self.xy_min = xy_min
         self.xy_max = xy_max
         self.color = None
-
-    def _clean(self, n):
-        n = _Decimal(n)
-        n = n.normalize()
-        n = n.quantize(_Decimal('1.000000'))
-        return n
 
     def __str__(self):
         return "%s(%s,%s)" % (self._strname, self.xy_min, self.xy_max)
@@ -474,36 +474,22 @@ class Line(object):
         def errbar(x, y):
             return 100 - (100 / x * y)
 
-        if abs(errbar(xest, x)) > 0.00001 or abs(errbar(yest, y)) > 0.00001:
+        if abs(errbar(xest, x)) > 0.0001 or abs(errbar(yest, y)) > 0.0001:
             msg += "%s estimates: x=%s y=%s" % (indent, xest, yest)
             print("%s" % (msg,))
-        if abs(errbar(xest, x)) > 0.00001:
+        if abs(errbar(xest, x)) > 0.0001:
             print("%s x error is %s pct" % (indent, errbar(xest, x)))
 
-        if abs(errbar(yest, y)) > 0.00001:
+        if abs(errbar(yest, y)) > 0.0001:
             print("%s y error is %s pct" % (indent, errbar(yest, y)))
 
-        def inside(val, l, r):
-            val = self._clean(val)
-            if l < r:
-                minimum = l
-                maximum = r
-            else:
-                minimum = r
-                maximum = l
-            if val < minimum - _Decimal(0.01) or val > maximum + _Decimal(0.01):
-                return False
-            return True
-
-        if not inside(x, self.xmin, self.xmax):
+        if not _inside(x, self.xmin, self.xmax):
             raise ValueError("%s is not in range %s..%s" % (x, self.xmin, self.xmax))
-        if not inside(y, self.ymin, self.ymax):
+        if not _inside(y, self.ymin, self.ymax):
             raise ValueError("%s is not in range %s..%s" % (x, self.ymin, self.ymax))
-        if not inside(z, self.zmin, self.zmax):
+        if not _inside(z, self.zmin, self.zmax):
             raise ValueError("%s is not in range %s..%s" % (x, self.zmin, self.zmax))
-        return Point(self._clean(x),
-                     self._clean(y),
-                     self._clean(z))
+        return Point(x, y, z)
 
     @property
     def reverse(self):

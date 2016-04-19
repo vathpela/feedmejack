@@ -497,6 +497,35 @@ class Line(object):
         line.color = self.color
         return line
 
+    def distance(self, point):
+        d = self.xy_min.distance(point) + self.xy_max.distance(point)
+        d = _Decimal(d) / 2
+        d = d.normalize()
+        d = d.quantize(_Decimal("1.000000"))
+        return d
+
+    def __eq__(self, other):
+        origin = XY(0,0)
+        sd = self.distance(origin)
+        od = other.distance(origin)
+        if sd == od:
+            if self.length == other.length:
+                return self.xym == other.xym
+        return False
+
+    def __lt__(self, other):
+        origin = XY(0,0)
+        sd = self.distance(origin)
+        od = other.distance(origin)
+        if sd == od:
+            if self.length == other.length:
+                return self.xym < other.xym
+            return self.length < other.length
+        return sd < od
+
+    def __hash__(self):
+        return hash((self.xy_min, self.xy_max))
+
 class VertexLibrary(object):
     # This would be better as a python 3.5 deque.
     def __init__(self):
@@ -640,7 +669,7 @@ class Face(object):
         return True
 
     def __hash__(self):
-        return object.__hash__(self)
+        return hash(tuple(self.vertices))
 
     def crossesZ(self, z):
         for line in self.lines:

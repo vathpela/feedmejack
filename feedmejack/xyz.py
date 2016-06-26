@@ -85,7 +85,7 @@ class XY(object):
         x *= x
         y = other.y - self.y
         y *= y
-        return math.sqrt(x+y)
+        return _clean(math.sqrt(x+y))
 
     def slope(self, other):
         ret = (other.y - self.y) / (other.x - self.x)
@@ -93,6 +93,34 @@ class XY(object):
 
     def __hash__(self):
         return hash((self.x, self.y, self.r))
+
+    @property
+    def quadrant(self):
+        if self.x > 0:
+            if self.y > 0:
+                return 1
+            elif self.y == 0:
+                raise ValueError
+            return 4
+        elif self.x < 0:
+            if self.y > 0:
+                return 2
+            elif self.y == 0:
+                raise ValueError
+            return 3
+        raise ValueError
+
+    @property
+    def xyquadrant(self):
+        return self.quadrant
+
+    @property
+    def yzquadrant(self):
+        raise RuntimeError("XY point has no YZ quadrant.")
+
+    @property
+    def xzquadrant(self):
+        raise RuntimeError("XY point has no XZ quadrant.")
 
 class XYZ(object):
     def __init__(self, x, y, z, r=0):
@@ -184,10 +212,26 @@ class XYZ(object):
             z2 = self.z
         z = z2 - self.z
         z *= z
-        return math.sqrt(x+y+z)
+        return _clean(math.sqrt(x+y+z))
 
     def __hash__(self):
         return hash((self.x, self.y, self.z, self.r))
+
+    @property
+    def xyquadrant(self):
+        return XY(self.x,self.y).quadrant
+
+    @property
+    def yzquadrant(self):
+        return XY(self.y,self.z).quadrant
+
+    @property
+    def xzquadrant(self):
+        return XY(self.x,self.z).quadrant
+
+    @property
+    def quadrant(Self):
+        return self.xyquadrant
 
 def Point(x, y, z=None):
     if z is None:

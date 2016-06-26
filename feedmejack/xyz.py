@@ -435,6 +435,24 @@ class Line(object):
         lrads = math.atan2(self.xyrise, self.xyrun)
         rrads = math.atan2(self.xyrun, self.xyrise)
 
+    def crossesX(self, x):
+        if self.xmin > self.xmax:
+            if x >= self.xmax and x <= self.xmin:
+                return True
+        else:
+            if x >= self.xmin and x <= self.xmax:
+                return True
+        return False
+
+    def crossesY(self, y):
+        if self.ymin > self.ymax:
+            if y >= self.ymax and y <= self.ymin:
+                return True
+        else:
+            if y >= self.ymin and y <= self.ymax:
+                return True
+        return False
+
     def crossesZ(self, z):
         if self.zmin > self.zmax:
             if z >= self.zmax and z <= self.zmin:
@@ -507,17 +525,16 @@ class Line(object):
         # y - mx = b
         # b = y - mx
         b = self.xy_min.y - (self.xym * self.xy_min.x)
-        return b
+        return _clean(b)
 
     def xyYAtX(self, x):
-        return (self.xym * x) + self.xyb
-
+        return (self.xym * _clean(x)) + self.xyb
 
     def xyXAtY(self, y):
         # y = mx + b
         # y -b = mx
         # (y-b)/m = x
-        return (y - self.xyb) / self.xym
+        return (_clean(y) - self.xyb) / self.xym
 
     def atX(self, x):
         indent = "      AtX:"
@@ -851,6 +868,18 @@ class Face(object):
 
     def __hash__(self):
         return hash(tuple(self.vertices))
+
+    def crossesX(self, x):
+        for line in self.lines:
+            if line.crossesX(x):
+                return True
+        return False
+
+    def crossesY(self, y):
+        for line in self.lines:
+            if line.crossesY(y):
+                return True
+        return False
 
     def crossesZ(self, z):
         for line in self.lines:

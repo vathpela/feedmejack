@@ -94,6 +94,14 @@ class XY(object):
     def __hash__(self):
         return hash((self.x, self.y, self.r))
 
+    def __lt__(self, other):
+        origin = XY(0,0)
+        sd = self.distance(origin)
+        od = other.distance(origin)
+        if sd < od:
+            return True
+        return False
+
     @property
     def quadrant(self):
         if self.x > 0:
@@ -265,22 +273,13 @@ class Line(object):
 
     def __eq__(self, other):
         if self.length == other.length:
-            origin = XY(0,0)
-            sd = self.distance(origin)
-            od = other.distance(origin)
-            if sd == od:
-                return self.xym == other.xym
+            return True
         return False
 
     def __lt__(self, other):
-        if self.length == other.length:
-            origin = XY(0,0)
-            sd = self.distance(origin)
-            od = other.distance(origin)
-            if sd == od:
-                return self.xym < other.xym
-            return sd < od
-        return self.length < other.length
+        if self.length < other.length:
+            return True
+        return False
 
     def __hash__(self):
         return hash((self.xy_min, self.xy_max))

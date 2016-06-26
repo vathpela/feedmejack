@@ -257,10 +257,53 @@ class Line(object):
     def length(self):
         return self.xy_min.distance(self.xy_max)
 
+    def __len__(self):
+        return self.length
+
+    def __eq__(self, other):
+        if self.length == other.length:
+            origin = XY(0,0)
+            sd = self.distance(origin)
+            od = other.distance(origin)
+            if sd == od:
+                return self.xym == other.xym
+        return False
+
+    def __lt__(self, other):
+        if self.length == other.length:
+            origin = XY(0,0)
+            sd = self.distance(origin)
+            od = other.distance(origin)
+            if sd == od:
+                return self.xym < other.xym
+            return sd < od
+        return self.length < other.length
+
+    def __hash__(self):
+        return hash((self.xy_min, self.xy_max))
+
     @property
     def points(self):
         yield self.xy_min
         yield self.xy_max
+
+    @property
+    def middle(self):
+        x = self.xmin + (self.xmax - self.xmin) / _Decimal(2.0)
+        y = self.ymin + (self.ymax - self.ymin) / _Decimal(2.0)
+        try:
+            z = self.zmin + (self.zmax - self.zmin) / _Decimal(2.0)
+            return XY(x,y,z)
+        except:
+            return XY(x,y)
+
+    @property
+    def bottom(self):
+        return Line(self.xy_min, self.middle)
+
+    @property
+    def top(self):
+        return Line(self.middle, self.xy_max)
 
     @property
     def xmin(self):
@@ -307,9 +350,7 @@ class Line(object):
         try:
             return self.xyrise / self.xyrun
         except decimal.DivisionByZero:
-            pdb.set_trace()
-            pass
-            pass
+            return math.inf
     # theta is in degrees
     @property
     def xytheta(self):
@@ -400,6 +441,29 @@ class Line(object):
                 return True
         return False
 
+    def atD(self, d):
+        t = self.length / d
+        x0 = self.xy_min.x
+        x1 = self.xy_max.x
+        dx = x1 - x0
+
+        y0 = self.xy_min.y
+        y1 = self.xy_max.y
+        dy = y1 - y0
+
+        x = x0 + dx / t
+        y = y0 + dy / t
+
+        if hasattr(self.xy_min, 'z') and hasattr(self.xy_max, 'z'):
+            z0 = self.xy_min.z
+            z1 = self.xy_max.z
+            dz = z1 - z0
+            if d < 0:
+                dz = 0 - abs(dz)
+            z = z0 + dz / t
+            return XYZ(x,y,z)
+        return XY(x,y)
+
     def dzAtZ(self, z):
         # indent = "        dzAtZ:"
         # things we know:
@@ -433,6 +497,81 @@ class Line(object):
         # print("%s dy = dz / tan(theta[yz]) = %f / tan(%f) = %f / %f = %f" %
         #        (indent, dz, self.yztheta, dz, self.yztan, dy))
         return dy
+
+    @property
+    def xyb(self):
+        # y = mx + b
+        # y - mx = b
+        # b = y - mx
+        b = self.xy_min.y - (self.xym * self.xy_min.x)
+        return b
+
+    def xyYAtX(self, x):
+        return (self.xym * x) + self.xyb
+
+
+    def xyXAtY(self, y):
+        # y = mx + b
+        # y -b = mx
+        # (y-b)/m = x
+        return (y - self.xyb) / self.xym
+
+    def atX(self, x):
+        indent = "      AtX:"
+
+        if not self.crossesX(x):
+            # raise ValueError
+            return None
+        if self.xy_min.x == x:
+            return self.xy_min
+        if self.xy_max.x == x:
+            return self.xy_max
+
+        msg = ""
+        msg += "%s finding point at x=%f\n" % (indent, x)
+
+        dx = self.dxAtX(x)
+        if self.xmin + dx != x:
+            raise ValueError("%s != %s" % (self.xmin + dx, x))
+        msg += "%s FINAL X: %f\n" % (indent, self.xmin + dx)
+
+        pdx = (dx) / self.xrange
+        msg += "%s %s x=%f (%f %%)\n" % (indent, self, x, pdx*100)
+
+        yest = self.ymin + (self.yrange * pdz)
+        zest = self.zmin + (self.zrange * pdx)
+
+        dz = self.dzAtX(x)
+        z = self.zmin + _Decimal(dz)
+
+        msg += "%s dz = %f\n" % (indent, dz)
+        msg += "%s FINAL Z: %s\n" % (indent, z)
+
+        dy = self.dyAtX(x)
+        y = self.ymin + _Decimal(dy)
+
+        msg += "%s dy = %s\n" % (indent, dy)
+        msg += "%s FINAL Y: %s\n" % (indent, y)
+
+        def errbar(y, z):
+            return 100 - (100 / x * y)
+
+        if abs(errbar(zest, z)) > 0.0001 or abs(errbar(yest, y)) > 0.0001:
+            msg += "%s estimates: z=%s y=%s" % (indent, zest, yest)
+            print("%s" % (msg,))
+        if abs(errbar(zest, z)) > 0.0001:
+            print("%s z error is %s pct" % (indent, errbar(zest, z)))
+
+        if abs(errbar(yest, y)) > 0.0001:
+            print("%s y error is %s pct" % (indent, errbar(yest, y)))
+
+        if not _inside(x, self.xmin, self.xmax):
+            raise ValueError("%s is not in range %s..%s" % (x, self.xmin, self.xmax))
+        if not _inside(y, self.ymin, self.ymax):
+            raise ValueError("%s is not in range %s..%s" % (x, self.ymin, self.ymax))
+        if not _inside(z, self.zmin, self.zmax):
+            raise ValueError("%s is not in range %s..%s" % (x, self.zmin, self.zmax))
+        return Point(x, y, z)
 
     def atZ(self, z):
         indent = "      AtZ:"
@@ -544,31 +683,26 @@ class Line(object):
     def distance(self, point):
         d = self.xy_min.distance(point) + self.xy_max.distance(point)
         d = _Decimal(d) / 2
-        d = d.normalize()
-        d = d.quantize(_Decimal("1.000000"))
-        return d
+        return _clean(d)
 
-    def __eq__(self, other):
-        origin = XY(0,0)
-        sd = self.distance(origin)
-        od = other.distance(origin)
-        if sd == od:
-            if self.length == other.length:
-                return self.xym == other.xym
-        return False
+    @property
+    def xybisector(self):
+        m = self.middle
 
-    def __lt__(self, other):
-        origin = XY(0,0)
-        sd = self.distance(origin)
-        od = other.distance(origin)
-        if sd == od:
-            if self.length == other.length:
-                return self.xym < other.xym
-            return self.length < other.length
-        return sd < od
+        rise = self.xyrise
+        run = self.xyrun
 
-    def __hash__(self):
-        return hash((self.xy_min, self.xy_max))
+        point1 = XY(m.x - rise/2, m.y + run/2)
+        l = Line(m, point1)
+        point0 = l.atD(0 - (self.length/2))
+        l = Line(point0, m)
+        point1 = l.atD(self.length)
+        l = Line(point0, point1)
+
+        if hasattr(self.middle, 'z'):
+            point0 = XYZ(point0.x, point0.y, self.middle.z)
+            point1 = XYZ(point1.x, point1.y, self.middle.z)
+        return Line(point0, point1)
 
 class VertexLibrary(object):
     # This would be better as a python 3.5 deque.

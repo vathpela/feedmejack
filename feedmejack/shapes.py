@@ -1,7 +1,296 @@
 #!/usr/bin/python3
 
+from decimal import Decimal as _Decimal
+import math
+
 if __name__ != '__main__':
     from .xyz import XY, XYZ, Line
+
+def _clean(val):
+        val = _Decimal(val)
+        val = val.normalize()
+        val = val.quantize(_Decimal("1.00000"))
+        return val
+
+def _inside(val, l, r):
+    val = _clean(val)
+    if l < r:
+        minimum = l
+        maximum = r
+    else:
+        minimum = r
+        maximum = l
+    if val < minimum - _Decimal(0.01) or val > maximum + _Decimal(0.01):
+        return False
+    return True
+
+class Triangle(object):
+    _strname = "Triangle"
+    def __new__(cls, A, B, C):
+        self = object.__new__(cls)
+        self.__init__(A, B, C)
+
+        angles = self.angles
+        if _Decimal(90.0) in self.angles:
+            self = object.__new__(RightTriangle)
+            self.__init__(A, B, C)
+        return self
+
+    def __init__(self, A, B, C):
+        AB = Line(A, B)
+        BC = Line(B, C)
+        AC = Line(A, C)
+
+        lines = [AB, BC, AC]
+        lines.sort()
+
+        # print("lines: %s" % (lines,))
+        # print("lengths: %s" % [x.length for x in lines])
+
+        # always organize it so B is opposite the longest line,
+        # and A is opposite the second longest...
+        candidates = [A,B,C]
+        cstrs = ['B','C','A']
+        n = 2
+        while candidates:
+            for c in candidates:
+                if not c in lines[n].points:
+                    setattr(self, cstrs[0], c)
+                    candidates.remove(c)
+                    break
+            n -= 1
+            cstrs.pop(0)
+
+    def subtriangle(self, is_a1=False):
+        if is_a1:
+            points = [self.Bmid, self.A, self.B]
+        else:
+            points = [self.Bmid, self.C, self.B]
+
+        return RightTriangle(*points)
+
+    @property
+    def a0(self):
+        return self.subtriangle(is_a1=False)
+
+    @property
+    def a1(self):
+        return self.subtriangle(is_a1=True)
+
+    @property
+    def area(self):
+        return self.a0.area + self.a1.area
+
+    @property
+    def Bmid(self):
+        #print("a: %s b: %s c: %s" % (self.a, self.b, self.c))
+        #print("a.length: %s c.length: %s" % (self.a.length, self.c.length))
+        a_to_c = (self.a.length + self.c.length) / self.c.length
+        #print("a_to_c: %s" % (a_to_c,))
+        a_to_c = _Decimal(1.0) / _Decimal(a_to_c)
+        #print("a_to_c: %s" % (a_to_c,))
+        #print("b_length: %s" % (self.b.length,))
+        b_length = self.b.length * (a_to_c)
+        #print("b_length: %s" % (b_length,))
+        #print("b: %s" % (self.b,))
+        b_at_d = self.b.atD(b_length)
+        #print("b.atD(%s): %s" % (b_length, b_at_d))
+        # print("b_at_d: %s" % (b_at_d,))
+        return b_at_d
+
+    @property
+    def CBA(self):
+        return self.ABC
+
+    @property
+    def BCA(self):
+        return self.ACB
+
+    @property
+    def CAB(self):
+        return self.BAC
+
+    @property
+    def ABC(self):
+        return _clean(float(self.a0.theta0 + self.a1.theta0))
+
+    @property
+    def BAC(self):
+        return _clean(self.a1.theta1)
+
+    @property
+    def ACB(self):
+        return _clean(self.a0.theta1)
+
+    @property
+    def angles(self):
+        yield self.BAC
+        yield self.ABC
+        yield self.ACB
+
+    def __str__(self):
+        return "%s(%s,%s,%s)" % (self._strname, self.A, self.B, self.C)
+
+    def __contains__(self, point):
+        raise NotImplementedError
+
+    @property
+    def is_right(self):
+        return _Decimal(45.0) in self.angles
+
+    @property
+    def is_acute(self):
+        for angle in self.angles:
+            if angle >= _Decimal(45.0):
+                return False
+        return True
+
+    @property
+    def is_obtuse(self):
+        for angle in self.angles:
+            if angle > _Decimal(45.0):
+                return True
+        return False
+
+    @property
+    def lengths(self):
+        yield self.A.distance(self.B)
+        yield self.B.distance(self.C)
+        yield self.C.distance(self.A)
+
+    @property
+    def longest(self):
+        return max(self.lengths)
+
+    @property
+    def shortest(self):
+        return min(self.lengths)
+
+    @property
+    def points(self):
+        yield self.A
+        yield self.B
+        yield self.C
+
+    @property
+    def a(self):
+        return Line(self.B, self.C)
+
+    @property
+    def b(self):
+        return Line(self.A, self.C)
+
+    @property
+    def c(self):
+        return Line(self.A, self.B)
+
+    @property
+    def middlest_point_index(self):
+        if _inside(self.A.x, self.B.x, self.C.x) and \
+           _inside(self.A.y, self.B.y, self.C.y):
+            return 0
+
+        if _inside(self.B.x, self.A.x, self.C.x) and \
+           _inside(self.B.y, self.A.y, self.C.y):
+            return 1
+
+        if _inside(self.C.x, self.B.x, self.A.x) and \
+           _inside(self.C.y, self.B.y, self.A.y):
+            return 2
+
+    @property
+    def baseline(self):
+        mpi = self.middlest_point_index
+        if mpi == 0:
+            return self.a
+        elif mpi == 1:
+            return self.b
+        elif mpi == 2:
+            return self.c
+        else:
+            raise RuntimeError("self.points index cannot be %s" % (mpi))
+
+    @property
+    def lines(self):
+        yield self.a
+        yield self.b
+        yield self.c
+
+class RightTriangle(Triangle):
+    _strname = "RightTriangle"
+
+    def __init__(self, A, B, C):
+        Triangle.__init__(self, A, B, C)
+        squares = [A.distance(B), B.distance(C), C.distance(A)]
+        one_percent = max(squares) / 100
+        squares[0] *= squares[0]
+        squares[1] *= squares[1]
+        squares[2] *= squares[2]
+
+        if squares[1] - (squares[0] + squares[2]) < one_percent:
+            pass
+        elif squares[2] - (squares[0] + squares[1]) < one_percent:
+            pass
+        elif squares[0] - (squares[1] + squares[2]) < one_percent:
+            pass
+        else:
+            raise ValueError("(%s,%s,%s) do not comprise a right triangle." % \
+                             (A, B, C))
+
+    @property
+    def area(self):
+        return _clean(self.a.length * self.c.length / _Decimal(2.0))
+
+    @property
+    def ABC(self):
+        return _Decimal(90.0)
+
+    @property
+    def BAC(self):
+        return _Decimal(180.0) - _Decimal(90.0) - _clean(self.thetaC)
+
+    @property
+    def ACB(self):
+        return _Decimal(180.0) - _Decimal(90.0) - _clean(self.thetaA)
+
+    @property
+    def Bmid(self):
+        """ the point on self.b from which you could draw a segment to self.B
+        which would be perpendicular to self.b.
+        """
+
+        x = (self.A.x + self.C.x) / _Decimal(2.0)
+        y = (self.A.y + self.C.y) / _Decimal(2.0)
+        try:
+            z = (self.B.z + self.C.z) / _Decimal(2.0)
+            Bmid = XYZ(x, y, z)
+        except:
+            Bmid = XY(x, y)
+        return Bmid
+
+    @property
+    def middlest_point_index(self):
+        return 1
+
+    @property
+    def thetaA(self):
+        a = self.A.distance(self.B)
+        o = self.C.distance(self.B)
+        return math.degrees(math.atan2(a,o))
+
+    @property
+    def thetaC(self):
+        a = self.C.distance(self.B)
+        o = self.A.distance(self.B)
+        return math.degrees(math.atan2(a,o))
+
+    @property
+    def baseline(self):
+        lines = list(self.lines)
+        return lines[self.middlest_point_index]
+
+    def __str__(self):
+        return Triangle.__str__(self)
 
 class Square(object):
     _strname = "Square"
@@ -198,7 +487,8 @@ class Ball(Plate):
     _strname = "Ball"
     # point.distance() makes this magical
 
-__all__ = ['Cube', 'Box', 'Circle', 'Plate', 'Ball']
+__all__ = ['Arc', 'Ball', 'Box', 'Circle', 'Cube',
+           'Plate', 'RightTriangle', 'Square', 'Triangle', 'Wedge']
 
 if __name__ == '__main__':
     p = Plate(XY(10,10), 2)

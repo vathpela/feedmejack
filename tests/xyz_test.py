@@ -90,3 +90,15 @@ class XYTestCase(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             a.xzquadrant
 
+class XYZTestCase(unittest.TestCase):
+    def test_XY_identity(self):
+        a = xyz.XY(0,0)
+        b = xyz.XYZ(0,0,0)
+        self.assertEqual(a,b)
+
+        c = xyz.XYZ(1,1,1)
+        self.assertEqual(c.yzquadrant, 1)
+        self.assertEqual(c.xzquadrant, 1)
+
+        d = xyz.XYZ(-1,-1,-1)
+        self.assertEqual(c.distance(d), Decimal('3.46410'))

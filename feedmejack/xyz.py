@@ -122,7 +122,7 @@ class XY(object):
     def xzquadrant(self):
         raise RuntimeError("XY point has no XZ quadrant.")
 
-class XYZ(object):
+class XYZ(XY):
     def __init__(self, x, y, z, r=0):
         self.x = _clean(x)
         self.y = _clean(y)
@@ -157,7 +157,10 @@ class XYZ(object):
         return self.__str__()
 
     def __eq__(self, other):
-        return self.x == other.x and self.y == other.y and self.z == other.z
+        if hasattr(other, 'z'):
+            return self.x == other.x and self.y == other.y and self.z == other.z
+        else:
+            return self.x == other.x and self.y == other.y
 
     def leftof(self, other):
         return self.x < other.x

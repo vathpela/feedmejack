@@ -30,36 +30,57 @@ class Triangle(object):
         self = object.__new__(cls)
         self.__init__(A, B, C)
 
-        angles = self.angles
         if _Decimal(90.0) in self.angles:
             self = object.__new__(RightTriangle)
             self.__init__(A, B, C)
         return self
 
     def __init__(self, A, B, C):
-        AB = Line(A, B)
-        BC = Line(B, C)
-        AC = Line(A, C)
-
-        lines = [AB, BC, AC]
-        lines.sort()
-
         # print("lines: %s" % (lines,))
         # print("lengths: %s" % [x.length for x in lines])
 
         # always organize it so B is opposite the longest line,
         # and A is opposite the second longest...
-        candidates = [A,B,C]
-        cstrs = ['B','C','A']
-        n = 2
-        while candidates:
-            for c in candidates:
-                if not c in lines[n].points:
-                    setattr(self, cstrs[0], c)
-                    candidates.remove(c)
-                    break
-            n -= 1
-            cstrs.pop(0)
+        self.A = A
+        self.B = B
+        self.C = C
+
+        origin = XY(0,0)
+
+        def swap(one, two):
+            # print("swapping %s and %s" % (one, two))
+            tmp = getattr(self, one)
+            setattr(self, one, getattr(self, two))
+            setattr(self, two, tmp)
+
+        def avg(*l):
+            return sum(l) / len(l)
+
+        # try to get a stable sort order, even though the only real
+        # restriction is b.length is longest and a.length is next.
+        if origin.distance(self.A) > origin.distance(self.B):
+            swap('A', 'B')
+        if origin.distance(self.B) > origin.distance(self.C):
+            swap('B', 'C')
+        if origin.distance(self.A) > origin.distance(self.C):
+            swap('A', 'C')
+
+        if avg(self.A.x, self.A.y) > avg(self.B.x, self.B.y):
+            swap('A', 'B')
+        if avg(self.B.x, self.B.y) > avg(self.C.x, self.C.y):
+            swap('B', 'C')
+        if avg(self.A.x, self.A.y) > avg(self.C.x, self.C.y):
+            swap('A', 'C')
+
+        # this is the only sorting that /really/ matters, but we do the
+        # previous two to try to get a stable sort order to make testing
+        # easier...
+        if self.a.length > self.b.length:
+            swap('A', 'B')
+        if self.c.length > self.b.length:
+            swap('B', 'C')
+        if self.c.length > self.a.length:
+            swap('A', 'C')
 
     def subtriangle(self, is_a1=False):
         if is_a1:
@@ -68,6 +89,10 @@ class Triangle(object):
             points = [self.Bmid, self.C, self.B]
 
         return RightTriangle(*points)
+
+    @property
+    def parimeter(self):
+        return self.a.length + self.b.length + self.c.length
 
     @property
     def a0(self):
@@ -82,21 +107,46 @@ class Triangle(object):
         return self.a0.area + self.a1.area
 
     @property
+    def thetaA(self):
+        bdeg = math.degrees(math.atan2(self.b.xyrise, self.b.xyrun))
+        cdeg = math.degrees(math.atan2(self.c.xyrise, self.c.xyrun))
+
+        theta = bdeg - cdeg
+
+        return _clean(theta)
+
+    @property
+    def thetaC(self):
+        bdeg = math.degrees(math.atan2(self.b.xyrise, self.b.xyrun))
+        adeg = math.degrees(math.atan2(self.a.xyrise, self.a.xyrun))
+
+        theta = bdeg - adeg
+
+        return _clean(theta)
+
+    @property
     def Bmid(self):
-        #print("a: %s b: %s c: %s" % (self.a, self.b, self.c))
-        #print("a.length: %s c.length: %s" % (self.a.length, self.c.length))
-        a_to_c = (self.a.length + self.c.length) / self.c.length
-        #print("a_to_c: %s" % (a_to_c,))
-        a_to_c = _Decimal(1.0) / _Decimal(a_to_c)
-        #print("a_to_c: %s" % (a_to_c,))
-        #print("b_length: %s" % (self.b.length,))
-        b_length = self.b.length * (a_to_c)
-        #print("b_length: %s" % (b_length,))
-        #print("b: %s" % (self.b,))
-        b_at_d = self.b.atD(b_length)
-        #print("b.atD(%s): %s" % (b_length, b_at_d))
-        # print("b_at_d: %s" % (b_at_d,))
-        return b_at_d
+        # print("a: %s b: %s c: %s" % (self.a, self.b, self.c))
+
+        # print("self.thetaA: %s" % (self.thetaA,))
+        # print("self.thetaC: %s" % (self.thetaC,))
+
+        angleB0 = 90 - self.thetaA
+        # print("angleB0: %s" % (angleB0,))
+        angleD = angleB0 * 2
+        # print("angleD: %s" % (angleD,))
+
+        lengthD = self.c.length
+
+        x = self.B.x - self.A.x
+        y = self.B.y - self.A.y
+
+        x = self.B.x - lengthD * _clean(math.cos(math.radians(angleD)))
+        y = self.B.y + lengthD * _clean(math.sin(math.radians(angleD)))
+        # print("(x,y): (%s,%s)" % (x,y))
+        BmidX = (x + self.A.x) / 2
+        BmidY = (y + self.A.y) / 2
+        return XY(BmidX, BmidY)
 
     @property
     def CBA(self):
@@ -112,15 +162,15 @@ class Triangle(object):
 
     @property
     def ABC(self):
-        return _clean(float(self.a0.theta0 + self.a1.theta0))
+        return _clean(180 - (abs(self.thetaA) + abs(self.thetaC)))
 
     @property
     def BAC(self):
-        return _clean(self.a1.theta1)
+        return abs(self.thetaA)
 
     @property
     def ACB(self):
-        return _clean(self.a0.theta1)
+        return abs(self.thetaC)
 
     @property
     def angles(self):

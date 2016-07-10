@@ -523,7 +523,7 @@ class Line(object):
         # y = mx + b
         # y - mx = b
         # b = y - mx
-        b = self.xy_min.y - (self.xym * self.xy_min.x)
+        b = self.xy_max.y - (self.xym * self.xy_max.x)
         return _clean(b)
 
     def xyYAtX(self, x):

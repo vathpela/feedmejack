@@ -5,6 +5,40 @@ import unittest
 from feedmejack import shapes, xyz
 from decimal import Decimal
 
+class LineTestCase(unittest.TestCase):
+    def test_Line(self):
+        a = xyz.XY(0,0)
+        b = xyz.XY(0.5, 0.86603)
+        l = xyz.Line(a, b)
+        self.assertEqual(l.xym, Decimal('1.73206'))
+        self.assertEqual(l.xyb, Decimal('0'))
+
+        l = xyz.Line(b, a)
+        self.assertEqual(l.xym, Decimal('1.73206'))
+        self.assertEqual(l.xyb, Decimal('0'))
+
+        a = xyz.XY(0,0)
+        b = xyz.XY(0.5, -0.86603)
+        l = xyz.Line(a, b)
+        self.assertEqual(l.xym, Decimal('-1.73206'))
+        self.assertEqual(l.xyb, Decimal('0'))
+
+        l = xyz.Line(b, a)
+        self.assertEqual(l.xym, Decimal('-1.73206'))
+        self.assertEqual(l.xyb, Decimal('0'))
+
+        a = xyz.XY(1,0)
+        b = xyz.XY(1.5, 0.86603)
+        l = xyz.Line(a, b)
+        self.assertEqual(l.xym, Decimal('1.73206'))
+        self.assertEqual(l.xyb, Decimal('-1.73206'))
+
+        a = xyz.XY(3,0)
+        b = xyz.XY(4,5)
+        l = xyz.Line(a, b)
+        self.assertEqual(l.xym, Decimal('5'))
+        self.assertEqual(l.xyb, Decimal('-15'))
+
 class RightTriangleTestCase(unittest.TestCase):
     def test_RightTriangle_angles(self):
         a = xyz.XY(0,0)

@@ -10,7 +10,7 @@
 int main(int argc, char *argv[])
 {
 	int rc;
-	char *device = "/dev/ttyACM0";
+	char *device = "/dev/cnc-mill";
 	char *cmdfile = NULL;
 	int cmdfd = -1;
 	poptContext optcon;

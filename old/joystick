@@ -206,7 +206,7 @@ class Wasteboard(object):
 
 if __name__ == '__main__':
     args = {
-        'serial': '/dev/ttyACM0'
+        'serial': '/dev/cnc-mill'
         }
 
     sys.argv = sys.argv[1:]

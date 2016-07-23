@@ -382,7 +382,7 @@ def do_slicing(obj, height, layer, tool):
     return lines
 
 if __name__ == '__main__':
-    terminal='/dev/ttyACM0'
+    terminal='/dev/cnc-mill'
     def usage(retval):
         if retval == 0:
             out = sys.stdout

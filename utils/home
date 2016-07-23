@@ -292,7 +292,7 @@ def status_cb(**kwds):
     #    sys.stdout.write("\n%s\n" % (s,))
 
 if __name__ == '__main__':
-    terminal='/dev/ttyACM0'
+    terminal='/dev/cnc-mill'
     tool = list(fmj.tools.find_tool(max_width=3.175, min_length=13))[0]
     mill = fmj.Mill(terminal, status_cb, tool=tool)
 

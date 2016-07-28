@@ -71,12 +71,12 @@ class Comms(object):
             self.device.write(msg)
 
     def readline(self, limit=100, interval=0.01):
-        timeout = 0
+        self._timeout = 0
 
-        while timeout < limit and not '\n' in self.buf:
+        while self._timeout < limit and not '\n' in self.buf:
             for event, mask in self.selector.select(interval):
                 if mask & _selectors.EVENT_READ:
-                    timeout = 0
+                    self._timeout = 0
                     x = event.fileobj.read(1).decode('utf8')
                     if x != '\r':
                         self.buf = "%s%c" % (self.buf, x)
@@ -85,11 +85,11 @@ class Comms(object):
                 else:
                     if self.callback:
                         self.callback()
-                    timeout += 1
+                    self._timeout += 1
             else:
                 if self.callback:
                     self.callback()
-                timeout += 1
+                self._timeout += 1
             if self.callback:
                 self.callback()
         if self.callback:
@@ -139,6 +139,10 @@ class Mill(object):
         self.homingfails = 0
 
     @property
+    def _timeout(self):
+        raise AttributeError
+
+    @property
     def f(self):
         return int(self._f)
 
@@ -151,10 +155,14 @@ class Mill(object):
         self.comms.write("!\x18\n\n\n\n")
         print("error: \"%s\"" % (response,))
         if response == "error: Alarm lock":
+            if self.homingfails and self.homingfails < 3:
+                self.comms._timeout = 0
+            print("Reseting.")
             self.reset()
             return
         elif response in ["error: Bad number format",
                           "error: Expected command letter",]:
+            print("Trying to write a newline 'cause that's meaningful...")
             self.comms.write("\n")
             return
         _pdb.set_trace()
@@ -166,6 +174,7 @@ class Mill(object):
         if response == "ALARM: Homing fail":
             self.homingfails += 1
             if self.homingfails < 3:
+                self.comms._timeout = 0
                 self.comms.write("\x18$X\n")
                 self.send(gcode.G55())
                 response = self.comms.readline()
@@ -204,7 +213,7 @@ class Mill(object):
                         line = False
                 except Timeout:
                     break
-            if line.startswith("['$H'"):
+            if line and line.startswith("['$H'"):
                 self.send("$X")
                 status = self.get_status()
             for x in range(0, len(self.queue)):

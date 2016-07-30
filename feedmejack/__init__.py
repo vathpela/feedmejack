@@ -108,13 +108,15 @@ class Comms(object):
             raise Timeout
 
 class Mill(object):
-    def __init__(self, device, status_cb=None, tool=None):
-        if status_cb:
-            self.status_cb = status_cb
+    def __init__(self, settings=None, tool=None):
+        self.settings = settings
+        if settings.status_cb:
+            self.status_cb = settings.status_cb
         else:
             self.status_cb = _default_status_cb
+            settings.status_cb = _default_status_cb
 
-        self.comms = Comms(device, 115200)
+        self.comms = Comms(settings.mill_tty, 115200)
         self.comms.set_callback(self.status_cb)
 
         self._f = 100
@@ -125,20 +127,26 @@ class Mill(object):
 
         self.grbl_version = ""
         self.grbl_params = []
+        self.parser_state = set()
 
         self.status = "Idle"
         self.mpos = xyz.XYZ(x=150, y=150, z=30)
         self.wpos = xyz.XYZ(x=150, y=150, z=30)
 
-        self.parser_state = set()
-
         if tool:
             self.tool = tool
         else:
             self.tool = list(tools.find_tool(max_width=0.76, min_length=9.4))[0]
+        self.tool.set_dynamic_offset(self.settings.tool_offset)
 
         self.timeouts = 0
         self.homingfails = 0
+
+    def __del__(self):
+        self.settings.reporter.last_show_status=1
+        self.get_status()
+        self.show_status(status="Exiting", wpos=self.wpos, mpos=self.mpos,
+                         target="")
 
     @property
     def _timeout(self):
@@ -149,11 +157,14 @@ class Mill(object):
         return int(self._f)
 
     def send(self, cmd):
+        self.show_status(cmd=cmd)
         cmd = str(cmd)
         cmd = "%s\n" % (cmd.strip(),)
         self.comms.write(cmd)
 
     def _handle_error(self, response):
+        self.show_status(cmd="!")
+        self.show_status(cmd="reset")
         self.comms.write("!\x18\n\n\n\n")
         print("error: \"%s\"" % (response,))
         if response == "error: Alarm lock":
@@ -171,12 +182,16 @@ class Mill(object):
         raise RuntimeError
 
     def _handle_alarm(self, response):
+        self.show_status(cmd="!")
+        self.show_status(cmd="reset")
         self.comms.write("!\x18\n\n\n\n")
         print("alarm: \"%s\"" % (response,))
         if response == "ALARM: Homing fail":
             self.homingfails += 1
             if self.homingfails < 3:
                 self.comms._timeout = 0
+                self.show_status(cmd="reset")
+                self.show_status(cmd="$X")
                 self.comms.write("\x18$X\n")
                 self.send(gcode.G55())
                 response = self.comms.readline()
@@ -227,7 +242,10 @@ class Mill(object):
             raise
 
     def _handle_unlock(self):
+        self.show_status(cmd="!")
+        self.show_status(cmd="reset")
         self.comms.write("!\x18")
+        self.show_status(cmd="$X")
         self.comms.write("$X\n")
         line = self.comms.readline()
         self._handle_response(line, process_queue=False)
@@ -265,6 +283,7 @@ class Mill(object):
         while True:
             response = self.comms.readline()
             if response.startswith("["):
+                self.parser_state_str = response[1:-1]
                 self.parser_state = set(response[1:-1].split(' '))
                 response = self.comms.readline()
                 found = True
@@ -273,6 +292,7 @@ class Mill(object):
 
             self._handle_response(response, process_queue=False)
             if found:
+                self.show_status("parser_state_str")
                 break
 
     def parse_status(self, line):
@@ -323,6 +343,14 @@ class Mill(object):
         if timeout:
             raise Timeout
         return None
+
+    def show_status(self, *items, **values):
+        kwds = {}
+        for item in items:
+            kwds[item] = getattr(self, item)
+        kwds.update(values)
+
+        self.settings.reporter.show_status(**kwds)
 
     def wait_for_idle(self, goal="Idle", timeout=10):
         self.comms.callback(goal=goal)
@@ -410,7 +438,7 @@ class Mill(object):
                 break
         self.wait_for_idle()
 
-    def setup(self, home=False):
+    def setup(self):
         self.status = "Waiting for idle"
         self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos,
                        goal="Idle")
@@ -437,22 +465,15 @@ class Mill(object):
         self.wait_for_idle()
         self.get_grbl_params()
 
-        self.send(gcode.G54())
-        response = self.comms.readline()
-        self._handle_response(response)
-        self.send(gcode.G43dot1(z=0))
-        response = self.comms.readline()
-        self._handle_response(response)
-
-        if home:
+        if self.settings.home:
             self.home()
-
-        self.send(gcode.G55())
-        response = self.comms.readline()
-        self._handle_response(response)
-        self.send(gcode.G43dot1(z=self.tool.z))
-        response = self.comms.readline()
-        self._handle_response(response)
+        else:
+            self.send(gcode.G55())
+            response = self.comms.readline()
+            self._handle_response(response)
+            self.send(gcode.G43dot1(z=self.tool.z))
+            response = self.comms.readline()
+            self._handle_response(response)
 
         self.get_parser_state()
         self.wait_for_idle()
@@ -492,9 +513,12 @@ class Mill(object):
         self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
         _signal.alarm(0)
+        self.show_status(cmd="reset")
+        self.show_status(cmd="$X")
         self.comms.write("\x18$X\n")
-        self.send(gcode.G55())
+        self.send(gcode.G54())
         response = self.comms.readline()
+        self.show_status(cmd="reset")
         self.comms.write("\x18")
         self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self._handle_post_reset()
@@ -504,15 +528,8 @@ class Mill(object):
     def park(self):
         self.status_cb(status="Parking", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
-        z = self.wpos.z
-        z0 = z+1
-        if z0 < 50:
-            z1 = 50
-        else:
-            z1 = z0+1
         cmds = [
-            gcode.G1(end={'z':z0}, f=20),
-            gcode.G0(end={'z':z1}),
+            gcode.G1(end={'z':50}, f=20),
             gcode.G0(end={'x':20, 'y':290}),
             ]
         for cmd in cmds:

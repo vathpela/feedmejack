@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
+import time
+
 import sys
 import pdb
 import feedmejack as fmj
 from feedmejack.utility import *
 from decimal import Decimal
-
-fmj.utility.rep = Reporter("/dev/serial/by-name/wyse")
 
 if __name__ == '__main__':
     defaults = {}
@@ -19,17 +19,19 @@ if __name__ == '__main__':
 
     settings = fmj.policy.Settings(d=defaults)
     settings = fmj.policy.parse_tool_settings(settings=settings)
+    settings = fmj.policy.parse_position_settings(label='start',
+                                                  settings=settings)
+    settings = fmj.policy.parse_position_settings(label='end',
+                                                  settings=settings)
     settings = fmj.policy.parse_comms_settings(settings=settings)
 
     others = {"home": True,
-              "park": False,
+              "park": True,
               "debug": False,
               "dryrun": False,
-              "raise_z": True,
+              "step": clean(0.1),
               }
     settings = fmj.policy.parse_settings(defaults=others, settings=settings)
-    settings = fmj.policy.parse_position_settings(optional=True,
-                                                  settings=settings)
     settings = fmj.policy.finalize(settings=settings)
 
     if len(sys.argv) > 1:
@@ -39,34 +41,27 @@ if __name__ == '__main__':
     tool = settings.tool
     print("tool: %s tool.z: %s" % (tool,tool.z))
 
-    mill = fmj.Mill(settings=settings)
-
     if not settings.dryrun:
+        mill = fmj.Mill(settings=settings)
+
         mill.reset()
         mill.setup()
 
-    cmds = []
-    if settings.raise_z:
-        cmd = fmj.gcode.G0(end={'z':50})
-        cmds.append(cmd)
-
-    if settings.feed <= 0:
-        code = fmj.gcode.G0
-        args = {}
-    else:
+    if settings.feed > 0:
         code = fmj.gcode.G1
         args = {'f':settings.feed}
+    else:
+        code = fmj.gcode.G0
+        args = {}
 
-    if settings.position_present:
-        if settings.raise_z:
-            cmd = code(end={'x':settings.x, 'y':settings.y}, **args)
-            cmds.append(cmd)
-            cmd = code(end={'z':settings.z}, **args)
-            cmds.append(cmd)
-        else:
-            cmd = code(end={'x':settings.x, 'y':settings.y, 'z':settings.z},
-                       **args)
-            cmds.append(cmd)
+    cmds = [
+        fmj.gcode.G0(end={'z':50}),
+        fmj.gcode.G0(end={'x':settings.start_x,'y':settings.start_y}),
+        fmj.gcode.G0(end={'z':settings.start_z * Decimal(1.1)}),
+        code(end={'z':settings.start_z}, **args),
+        code(end={'x':settings.end_x, 'y':settings.end_y, 'z':settings.end_z},
+             **args)
+        ]
 
     for cmd in cmds:
         print("%s" % (cmd,))

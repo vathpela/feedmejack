@@ -346,7 +346,7 @@ if __name__ == '__main__':
 
     if not dry_run:
         mill = fmj.Mill(terminal, status_cb, tool=tool)
-        print("Reseting mill")
+        print("Resetting mill")
         mill.reset()
         print("Mill setup")
         mill.setup(home=home)

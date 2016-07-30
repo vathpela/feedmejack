@@ -157,7 +157,7 @@ class Mill(object):
         if response == "error: Alarm lock":
             if self.homingfails and self.homingfails < 3:
                 self.comms._timeout = 0
-            print("Reseting.")
+            print("Resetting.")
             self.reset()
             return
         elif response in ["error: Bad number format",
@@ -465,14 +465,14 @@ class Mill(object):
         self._handle_response(response)
 
     def reset(self):
-        self.status_cb(status="Reseting", wpos=self.wpos, mpos=self.mpos)
+        self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
         _signal.alarm(0)
         self.comms.write("\x18$X\n")
         self.send(gcode.G55())
         response = self.comms.readline()
         self.comms.write("\x18")
-        self.status_cb(status="Reseting", wpos=self.wpos, mpos=self.mpos)
+        self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self._handle_post_reset()
         if self.wpos.z < 10 and self.mpos.z > 90:
             self.send(gcode.G1(z=-10,f=10))

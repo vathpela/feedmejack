@@ -98,12 +98,25 @@ tools = [
         ]
 
 def find_tool(max_width=None, min_length=None, tool_class=None):
+    classes = set()
+    if tool_class:
+        for tool in tools:
+            if tool.__class__.__name__.lower() == tool_class.lower():
+                classes.add(tool.__class__)
+        for tool in tools:
+            if issubclass(tool.__class__, tuple(classes)):
+                classes.add(tool.__class__)
+    else:
+        for tool in tools:
+            classes.add(tool.__class__)
+    classes = tuple(classes)
+
     for tool in tools:
         if max_width and max_width < tool.width:
             continue
         if min_length and min_length > tool.length:
             continue
-        if tool_class and not isintance(tool, tool_class):
+        if tool_class and not isinstance(tool, classes):
             continue
         yield tool
     raise StopIteration

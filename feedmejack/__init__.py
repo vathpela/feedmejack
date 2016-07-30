@@ -432,12 +432,34 @@ class Mill(object):
         self.wait_for_idle()
         self.status_cb(status="Idle", wpos=self.wpos, mpos=self.mpos, goal="")
         self.get_parser_state()
-        #pprint.pprint("%s" % (self.parser_state,))
         self.wait_for_idle()
         self.get_grbl_params()
-        #pprint.pprint("%s" % (self.grbl_params,))
 
-        self.home()
+        self.send(gcode.G54())
+        response = self.comms.readline()
+        self._handle_response(response)
+        self.send(gcode.G43dot1(z=0))
+        response = self.comms.readline()
+        self._handle_response(response)
+
+        if home:
+            self.home()
+
+        self.send(gcode.G55())
+        response = self.comms.readline()
+        self._handle_response(response)
+        self.send(gcode.G43dot1(z=self.tool.z))
+        response = self.comms.readline()
+        self._handle_response(response)
+
+        self.get_parser_state()
+        self.wait_for_idle()
+
+        self.get_grbl_params()
+        print("grbl params ($#):")
+        for k,v in [list(zip(p.keys(),p.values()))[0] for p in self.grbl_params]:
+            print("  %s: %s" % (k, v))
+        print("parser state ($G): [%s]" % (' '.join(self.parser_state),))
 
     def home(self):
         self.status = "Waiting for idle"

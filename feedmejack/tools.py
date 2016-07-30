@@ -63,6 +63,9 @@ class GearCutter(Tool):
 class Engraver(Tool):
     _strname = "Engraver"
 
+class Dovetail(Tool):
+    _strname = "Dovetail"
+
 tools = [
         EndMill("case C", "light pink 1mm", 1.0, 9.5, 20),
         EndMill("case B", "black 0.75mm", 0.75, 9.5, 20),
@@ -86,6 +89,8 @@ tools = [
                    notes="Micro-100 Super Carbide IT-180500"),
         Engraver("black case", "1/4 pointy engraving bit", 0.1, 0.1, 30,
                 notes="the point is quite a bit longer than 0.1"),
+        Dovetail("wood bit selector", "1/2\" dovetail bit", 12.7, 12.7, 27,
+                notes="1/4\" at the top"),
         ]
 
 def find_tool(max_width=None, min_length=None, tool_class=None):

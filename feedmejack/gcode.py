@@ -62,32 +62,12 @@ class GCodeMaker(object):
 
     @property
     def target(self):
-        args = self._data
-
-        s = ""
-        for x in self._target_order:
-            if isinstance(x, dict):
-                for k,vals in x.items():
-                    for v in vals:
-                        try:
-                            s += " %s" % (self._tmpls[k][v] % args[k][v])
-                        except KeyError:
-                            pass
-                    break
-            elif isinstance(x, list) or isinstance(x, tuple):
-                for i in range(1, len(x)):
-                    try:
-                        s += " %s" % (self._tmpls[x[i]] % args[x[i]])
-                    except KeyError:
-                        pass
-            else:
-                try:
-                    s += " %s" % (self._tmpls[x] % args[x])
-                except KeyError:
-                    pass
-
-        s = "%s" % (s,)
-        return s.strip()
+        s = []
+        for item in str(self).split(' '):
+            if item[0] in ['X', 'Y', 'Z', 'I', 'J', 'K']:
+                s.append(item)
+        s = ' '.join(s)
+        return s
 
     def estimate_final_pos(self, **args):
         pass

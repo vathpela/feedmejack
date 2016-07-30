@@ -6,7 +6,7 @@ class Tool(object):
     _strname = "Tool"
 
     def __init__(self, location, name, width, length, offset, \
-            max_feed_rate=100):
+            max_feed_rate=100, notes=None):
         self._location = location
         self._name = name
         self._width = _Decimal(width)
@@ -14,6 +14,7 @@ class Tool(object):
         self._max_feed_rate = int(max_feed_rate)
         self.feed_rate_limit = None
         self._z = offset
+        self.notes = notes
 
     def __str__(self):
         return self.name
@@ -53,7 +54,17 @@ class EndMill(Tool):
 class CuttingMill(Tool):
     _strname = "CuttingMill"
 
+class CompressionMill(Tool):
+    _strname = "CompressionMill"
+
+class GearCutter(Tool):
+    _strname = "GearCutter"
+
+class Engraver(Tool):
+    _strname = "Engraver"
+
 tools = [
+        EndMill("case C", "light pink 1mm", 1.0, 9.5, 20),
         EndMill("case B", "black 0.75mm", 0.75, 9.5, 20),
         EndMill("case A", "white 1.2mm", 1.2, 10, 19),
         EndMill("case A", "gray 1.1mm", 1.1, 10, 20),
@@ -65,8 +76,16 @@ tools = [
         EndMill("case A", "dark purple 0.6mm", 0.6, 7, 19.8),
         EndMill("case A", "dark yellow 0.55mm", 0.55, 6, 19.9),
         EndMill("case A", "light green 0.35mm", 0.35, 4.75, 19.8),
-        EndMill("free", "1/4in Onrsud", 6.35, 28, 42),
+        EndMill("free", "1/4in Onrsud upcut", 6.35, 28, 42),
         CuttingMill("free", "1/8in cutter", 3.175, 14, 22.5),
+        CompressionMill("free", "3mm compression bit", 3.0, 14, 10.5,
+                        notes="inventables part 30668-01"),
+        GearCutter("free", "1/4in ACME Gear Cutter", 5.0, 1.5, 30,
+                   notes="Micro-100 Super Carbide SAT-400-16"),
+        GearCutter("free", "1/4in Gear Cutter", 4.75, 1.5, 30,
+                   notes="Micro-100 Super Carbide IT-180500"),
+        Engraver("black case", "1/4 pointy engraving bit", 0.1, 0.1, 30,
+                notes="the point is quite a bit longer than 0.1"),
         ]
 
 def find_tool(max_width=None, min_length=None, tool_class=None):

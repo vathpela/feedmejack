@@ -121,6 +121,22 @@ def find_tool(max_width=None, min_length=None, tool_class=None):
         yield tool
     raise StopIteration
 
+def get_tool(settings):
+    tool_args = {}
+    if settings.tool_width >= 0:
+        tool_args['max_width'] = settings.tool_width
+    if settings.tool_len >= 0:
+        tool_args['min_length'] = settings.tool_len
+    if settings.tool_class != None:
+        tool_args['tool_class'] = settings.tool_class
+    tools = list(find_tool(**tool_args))
+    if not tools:
+        raise RuntimeError("no tool found for %s" % (tool_args))
+    tool = tools[0]
+    if settings.tool_offset != 0:
+        tool.set_dynamic_offset(settings.tool_offset)
+    return tool
+
 __all__ = [ "CompressionMill", "CuttingMill", "Dovetail", "Engraver",
             "GearCutter",
-            "find_tool", "Tool", "EndMill"]
+            "find_tool", "get_tool", "Tool", "EndMill"]

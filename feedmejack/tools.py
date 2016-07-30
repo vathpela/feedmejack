@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from decimal import Decimal as _Decimal
+from .utility import *
 
 class Tool(object):
     _strname = "Tool"
@@ -9,8 +9,8 @@ class Tool(object):
             max_feed_rate=100, notes=None):
         self._location = location
         self._name = name
-        self._width = _Decimal(width)
-        self._length = _Decimal(length)
+        self._width = clean(width)
+        self._length = clean(length)
         self._max_feed_rate = int(max_feed_rate)
         self.feed_rate_limit = None
         self._z = offset

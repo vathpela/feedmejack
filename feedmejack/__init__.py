@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+from . import exceptions
+from .exceptions import *
 from . import gcode
 from . import masks
 from . import policy
@@ -21,8 +23,6 @@ import signal as _signal
 import sys as _sys
 from decimal import Decimal as _Decimal
 
-class Timeout(Exception):
-    pass
 
 def _default_status_cb(**kwds):
     pass

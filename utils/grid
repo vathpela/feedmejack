@@ -350,8 +350,8 @@ if __name__ == '__main__':
     status_cb(status=mill.status, wpos=mill.wpos)
     mill.get_status()
 
-    z = Decimal(19.7)
-    f = 150
+    z = Decimal(19.0)
+    f = 400
 
     if debug:
         z += 10
@@ -413,8 +413,8 @@ if __name__ == '__main__':
     cmds = []
 
     for (a,cmd,f) in coords:
-        if 'x' in a and 'y' in a and 'z' in a:
-            a['z'] = adjust_z(**a)
+        #if 'x' in a and 'y' in a and 'z' in a:
+        #    a['z'] = adjust_z(**a)
         kwargs = {'end': a}
         if f:
             kwargs['f'] = f

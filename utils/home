@@ -194,7 +194,7 @@ class Reporter(object):
             self.escape("[%sm" % (s,))
 
 global rep
-rep = Reporter("/dev/ttyUSB0")
+rep = Reporter("/dev/serial/by-name/wyse")
 report = {}
 last_time = None
 
@@ -292,15 +292,32 @@ def status_cb(**kwds):
     #    sys.stdout.write("\n%s\n" % (s,))
 
 if __name__ == '__main__':
-    terminal='/dev/cnc-mill'
+    terminal='/dev/serial/by-name/cnc-mill'
     tool = list(fmj.tools.find_tool(max_width=3.175, min_length=13))[0]
     mill = fmj.Mill(terminal, status_cb, tool=tool)
 
-    mill.reset()
-    mill.setup()
+    home = True
+    debug = False
+    park = False
+    removes=[]
+    for i in range(len(sys.argv)):
+        x = sys.argv[i]
+        if x in ["-N", "--no-home", "--nohome"]:
+            home = False
+            removes.append(i)
+        elif x in ["-d", "--debug"]:
+            debug = True
+            removes.append(i)
+        elif x in ["-p", "--park"]:
+            park = True
+            removes.append(i)
+        elif x in ["--no-park", "--nopark"]:
+            park = False
+            removes.append(i)
 
-    mill.get_status()
-    status_cb(status=mill.status, wpos=mill.wpos)
+    removes.reverse()
+    for remove in removes:
+        del sys.argv[remove]
 
     kwds = {}
     if len(sys.argv) > 1:
@@ -310,8 +327,24 @@ if __name__ == '__main__':
     if len(sys.argv) > 3:
         kwds['z'] = float(sys.argv[3])
 
-    if kwds:
-        cmd = fmj.gcode.G0(end=kwds)
-        mill.send(cmd)
+    mill.reset()
+    mill.setup(home=home)
 
-    mill.wait_for_idle()
+    mill.get_status()
+    status_cb(status=mill.status, wpos=mill.wpos)
+
+    if kwds:
+        cmds = []
+        if 'z' in kwds:
+            cmd = fmj.gcode.G0(end={'z':kwds['z']})
+            cmds.append(cmd)
+        cmd = fmj.gcode.G0(end=kwds)
+        cmds.append(cmd)
+
+        for cmd in cmds:
+            print("%s" % (cmd,))
+            mill.send(cmd)
+            mill.wait_for_idle()
+
+    if park:
+        mill.park()

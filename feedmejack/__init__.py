@@ -1,12 +1,14 @@
 #!/usr/bin/python3
 
-from . import xyz
-from . import shapes
-from . import masks
-from . import rasters
 from . import gcode
+from . import masks
+from . import policy
+from . import shapes
+from . import rasters
 from . import tracers
 from . import tools
+from . import utility
+from . import xyz
 
 import array as _array
 import fcntl as _fcntl
@@ -517,5 +519,13 @@ class Mill(object):
             self.send(cmd)
             self.wait_for_idle()
 
-__all__ = ['gcode', 'masks', 'rasters', 'shapes', 'tools', 'tracers', \
-           'xyz']
+__all__ = ['gcode',
+           'masks',
+           'policy',
+           'rasters',
+           'shapes',
+           'tools',
+           'tracers',
+           'utility',
+           'xyz'
+           ]

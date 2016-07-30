@@ -8,16 +8,16 @@ from decimal import Decimal
 
 if __name__ == '__main__':
     defaults = {}
-    defaults.update(fmj.policy.default_tool_settings())
-    defaults.update(fmj.policy.default_position_settings(label='start',
+    defaults.update(fmj.settings.default_tool_settings())
+    defaults.update(fmj.settings.default_position_settings(label='start',
                                                          x=10, y=10, z=50))
-    defaults.update(fmj.policy.default_position_settings(label='end',
+    defaults.update(fmj.settings.default_position_settings(label='end',
                                                          x=290, y=290, z=50))
-    defaults.update(fmj.policy.default_comms_settings())
+    defaults.update(fmj.settings.default_comms_settings())
 
-    settings = fmj.policy.Settings(d=defaults)
-    settings = fmj.policy.parse_tool_settings(settings=settings)
-    settings = fmj.policy.parse_comms_settings(settings=settings)
+    settings = fmj.settings.Settings(d=defaults)
+    settings = fmj.settings.parse_tool_settings(settings=settings)
+    settings = fmj.settings.parse_comms_settings(settings=settings)
 
     others = {"home": True,
               "park": False,
@@ -25,10 +25,10 @@ if __name__ == '__main__':
               "dryrun": False,
               "raise_z": True,
               }
-    settings = fmj.policy.parse_settings(defaults=others, settings=settings)
-    settings = fmj.policy.parse_position_settings(optional=True,
+    settings = fmj.settings.parse_settings(defaults=others, settings=settings)
+    settings = fmj.settings.parse_position_settings(optional=True,
                                                   settings=settings)
-    settings = fmj.policy.finalize(settings=settings)
+    settings = fmj.settings.finalize(settings=settings)
 
     if len(sys.argv) > 1:
         print("what's up with this command line: %s" % (sys.argv,))

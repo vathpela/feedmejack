@@ -4,7 +4,7 @@ from . import exceptions
 from .exceptions import *
 from . import gcode
 from . import masks
-from . import policy
+from . import settings
 from . import shapes
 from . import rasters
 from . import tracers

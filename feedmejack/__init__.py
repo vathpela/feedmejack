@@ -3,7 +3,7 @@
 from . import exceptions
 from . import gcode
 from . import masks
-from . import policy
+from . import settings
 from . import shapes
 from . import rasters
 from . import tracers
@@ -18,7 +18,7 @@ __all__ = [
            'exceptions',
            'gcode',
            'masks',
-           'policy',
+           'settings',
            'rasters',
            'shapes',
            'tools',

@@ -7,12 +7,12 @@ from .rasters import *
 from .masks import *
 
 class ArcBox(object):
-    def __init__(self, start, box, arc, tool, fill=True):
+    def __init__(self, start, box, arc, policy, fill=True):
         self._start = start
         self._top_left = top_left
         self._bottom_right = bottom_right
         self._center = center
-        self._tool = tool
+        self._policy = policy
         self._fill = fill
 
         self._box = box
@@ -20,7 +20,7 @@ class ArcBox(object):
 
     @property
     def tool(self):
-        return self._tool
+        return self.policy.tool
 
     @property
     def box(self):

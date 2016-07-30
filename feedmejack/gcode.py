@@ -123,21 +123,23 @@ class G1(GCodeMaker):
         GCodeMaker.__init__(self, **data)
 
 class G2(GCodeMaker):
+    """clockwise arc"""
     _cmd = "G2"
     _order = ['f', 'x', 'y', 'z', 'i', 'j']
     _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f",
             'f':"F%0.03f", 'i':"I%0.03f",'j':'J%0.03f'}
-    _target_order = ['x', 'y', 'z']
+    _target_order = ['x', 'y', 'z', 'i', 'j', 'f']
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)
 
 class G3(GCodeMaker):
+    """anticlockwise arc"""
     _cmd = "G3"
-    _order = ['x', 'y', 'z']
+    _order = ['f', 'x', 'y', 'z', 'i', 'j']
     _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f",
             'f':"F%0.03f", 'i':"I%0.03f",'j':'J%0.03f'}
-    _target_order = ['x', 'y', 'z']
+    _target_order = ['x', 'y', 'z', 'i', 'j', 'f']
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)

@@ -122,7 +122,7 @@ class Mill(object):
         self.queue = []
 
         self.grbl_version = ""
-        self.grbl_params = {}
+        self.grbl_params = []
 
         self.status = "Idle"
         self.mpos = xyz.XYZ(x=150, y=150, z=30)
@@ -177,6 +177,8 @@ class Mill(object):
                 self.comms._timeout = 0
                 self.comms.write("\x18$X\n")
                 self.send(gcode.G55())
+                response = self.comms.readline()
+                self.send(gcode.G43dot1(z=self.tool.z))
                 response = self.comms.readline()
                 self.get_status()
                 self.send(gcode.G1(z=self.wpos.z - 10, f=10))
@@ -379,29 +381,34 @@ class Mill(object):
     def get_grbl_params(self):
         self.comms.write("$#\n")
         found_bracket = False
+        grbl_params = []
         while True:
             response = self.comms.readline()
             if response.startswith("["):
                 found_bracket = True
                 response = response[1:-1]
                 if response.startswith("TLO:"):
-                    self.grbl_params['TLO'] = _Decimal(response[4:])
+                    grbl_params.append({'TLO':_Decimal(response[4:])})
+                    continue
                 elif response.startswith("PRB:"):
-                    tmp,dunno = response[4:].split(':')
+                    tmp,value = response[4:].split(':')
                     pos = tmp.split(',')
                     pos = xyz.XYZ(x=pos[0], y=pos[1], z=pos[2])
-                    self.grbl_params[response[:3]] = {"Pos":pos,
-                                                      "Dunno": dunno}
+                    grbl_params.append({response[:3]: [pos,value]})
+                    continue
                 else:
                     pos = response[4:].split(',')
                     pos = xyz.XYZ(x=pos[0], y=pos[1], z=pos[2])
-                    self.grbl_params[response[:3]] = pos
+                    grbl_params.append({response[:3]:pos})
+                    continue
             else:
                 self._handle_response(response)
             if found_bracket:
+                self.grbl_params = grbl_params
                 break
+        self.wait_for_idle()
 
-    def setup(self):
+    def setup(self, home=False):
         self.status = "Waiting for idle"
         self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos,
                        goal="Idle")
@@ -440,6 +447,12 @@ class Mill(object):
         self.comms.clear()
         self.send("$X")
         response = self.comms.readline()
+        self.send(gcode.G54())
+        response = self.comms.readline()
+        self._handle_response(response)
+        self.send(gcode.G43dot1(z=0))
+        response = self.comms.readline()
+        self._handle_response(response)
         self.send("$H")
         self.status = "Waiting for Homing"
         self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos)
@@ -452,14 +465,14 @@ class Mill(object):
         self._handle_response(response)
 
     def reset(self):
-        self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
+        self.status_cb(status="Reseting", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
         _signal.alarm(0)
         self.comms.write("\x18$X\n")
         self.send(gcode.G55())
         response = self.comms.readline()
         self.comms.write("\x18")
-        self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
+        self.status_cb(status="Reseting", wpos=self.wpos, mpos=self.mpos)
         self._handle_post_reset()
         if self.wpos.z < 10 and self.mpos.z > 90:
             self.send(gcode.G1(z=-10,f=10))

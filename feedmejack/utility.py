@@ -39,7 +39,8 @@ class StatusItem():
         self.__dict__.update(d)
 
 class Reporter(object):
-    def __init__(self, device=None, speed=115200):
+    def __init__(self, settings):
+        self.settings = settings
         self.status = {
             'status': StatusItem(heading='status', x=-71, y=20, limit=39),
             'goal': StatusItem(heading='goal', x=-71, y=21, limit=39),
@@ -55,8 +56,8 @@ class Reporter(object):
         self.last_show_status = 0
         self.refresh_threshold = 0
 
-        if device:
-            self.fd = os.open(device, os.O_RDWR)
+        if self.settings.reporter_tty and self.settings.reporter_tty != '-':
+            self.fd = os.open(self.settings.reporter_tty, os.O_RDWR)
         else:
             self.fd = os.open(sys.stdout.fileno(), O_RDWR)
         self.cur_x = 1
@@ -338,14 +339,4 @@ class Reporter(object):
             self.show_status(time="%f" % (now,),
                     asctime="%s" % (time.asctime(time.localtime(now)),))
 
-
-global rep
-rep = None
-
-def status_cb(**kwds):
-    global rep
-    if rep is None:
-        return
-    rep.show_status(**kwds)
-
-__all__ = ["clean", "frange", "Reporter", "rep", "status_cb"]
+__all__ = ["clean", "frange", "Reporter"]

@@ -125,9 +125,14 @@ def parse_position_settings(label=None, optional=False, settings=None,
     return settings
 
 def default_comms_settings(reporter_tty='/dev/serial/by-name/wyse',
-                           mill_tty='/dev/serial/by-name/cnc-mill'):
+                           reporter_tty_speed = 115200,
+                           mill_tty='/dev/serial/by-name/cnc-mill',
+                           mill_tty_speed = 115200):
     return {'reporter_tty': reporter_tty,
-            'mill_tty': mill_tty }
+            'reporter_tty_speed': reporter_tty_speed,
+            'mill_tty': mill_tty,
+            'mill_tty_speed': mill_tty_speed,
+            }
 
 def parse_comms_settings(settings=None, argv=sys.argv):
     if not settings:
@@ -146,6 +151,14 @@ def parse_comms_settings(settings=None, argv=sys.argv):
             args['reporter_tty'] = argv[i+1]
             removes += [i, i+1]
             n += 1
+        if x in ["--reporter-tty-speed"]:
+            args['reporter_tty_speed'] = int(argv[i+1])
+            removes += [i, i+1]
+            n+= 1
+        if x in ["--mill-tty-speed"]:
+            args['mill_tty_speed'] = int(argv[i+1])
+            removes += [i, i+1]
+            n+= 1
         if x in ["--mill_tty", "--mill", "--mill-tty"]:
             args['mill_tty'] = argv[i+1]
             removes += [i, i+1]
@@ -212,9 +225,7 @@ def parse_settings(defaults={}, settings=None, argv=sys.argv):
     return settings
 
 def finalize(settings):
-    settings.status_cb = utility.status_cb
-    utility.rep = utility.Reporter(settings.reporter_tty)
-    settings.reporter = utility.rep
+    settings.reporter = utility.Reporter(settings)
     if not hasattr(settings, 'home'):
         settings.home = False
     if not hasattr(settings, 'park'):

@@ -10,6 +10,7 @@ from . import rasters
 from . import tracers
 from . import tools
 from . import utility
+from .utility import *
 from . import xyz
 
 import array as _array
@@ -23,26 +24,20 @@ import signal as _signal
 import sys as _sys
 from decimal import Decimal as _Decimal
 
-
-def _default_status_cb(**kwds):
-    pass
-
 class Comms(object):
-    def __init__(self, device, speed):
-        self.fd = _os.open(device, _os.O_RDWR)
+    def __init__(self, settings):
+        self.settings = settings
+
+        self.fd = _os.open(self.settings.mill_tty, _os.O_RDWR)
         self.device = _os.fdopen(self.fd, "w+b", buffering=0)
 
-        self.setspeed(speed)
+        self.setspeed(self.settings.mill_tty_speed)
 
         self.selector = _selectors.PollSelector()
 
         self.buf = u""
 
         self.selector.register(self.device, _selectors.EVENT_READ)
-        self.callback = _default_status_cb
-
-    def set_callback(self, callback):
-        self.callback = callback
 
     def setspeed(self, speed):
         TCGETS2 = 0x802C542A
@@ -62,7 +57,7 @@ class Comms(object):
         x = msg
         x.strip()
         if len(x):
-            self.callback(writing=x)
+            self.settings.mill.show_status(writing=x)
         if '\r\n' in msg:
             parts = msg.split('\r\n')
             msg = '\n'.join(parts)
@@ -85,39 +80,28 @@ class Comms(object):
                     if '\n' in self.buf:
                         continue
                 else:
-                    if self.callback:
-                        self.callback()
+                    self.settings.mill.show_status()
                     self._timeout += 1
             else:
-                if self.callback:
-                    self.callback()
+                self.settings.mill.show_status()
                 self._timeout += 1
-            if self.callback:
-                self.callback()
-        if self.callback:
-            self.callback()
+            self.settings.mill.show_status()
+        self.settings.mill.show_status()
         if '\n' in self.buf:
             lines = self.buf.split('\n')
             self.buf = '\n'.join(lines[1:])
             ret = str(lines[0]).strip()
-            self.callback(read=ret)
+            self.settings.mill.show_status(read=ret)
             return ret
         else:
-            if self.callback:
-                self.callback(timeout=True)
+            self.settings.mill.show_status(timeout=True)
             raise Timeout
 
 class Mill(object):
     def __init__(self, settings=None, tool=None):
         self.settings = settings
-        if settings.status_cb:
-            self.status_cb = settings.status_cb
-        else:
-            self.status_cb = _default_status_cb
-            settings.status_cb = _default_status_cb
-
-        self.comms = Comms(settings.mill_tty, 115200)
-        self.comms.set_callback(self.status_cb)
+        self.settings.mill = self
+        self.comms = Comms(settings)
 
         self._f = 100
 
@@ -309,7 +293,7 @@ class Mill(object):
             (wpos[0],wpos[1],wpos[2]) = line.split(',', maxsplit=2)
             self.wpos = xyz.XYZ(x=wpos[0], y=wpos[1], z=wpos[2])
 
-            self.status_cb(status=status, wpos=self.wpos, mpos=self.mpos)
+            self.show_status(status=status, wpos=self.wpos, mpos=self.mpos)
             return status
         return None
 
@@ -353,12 +337,12 @@ class Mill(object):
         self.settings.reporter.show_status(**kwds)
 
     def wait_for_idle(self, goal="Idle", timeout=10):
-        self.comms.callback(goal=goal)
+        self.show_status(goal=goal)
         start = _time.monotonic()
         while True:
             try:
                 status = self.get_status()
-                self.comms.callback(goal=goal, status=self.status,
+                self.show_status(goal=goal, status=self.status,
                         mpos=self.mpos, wpos=self.wpos)
                 break
             except Timeout:
@@ -398,8 +382,8 @@ class Mill(object):
                 raise
         if status == goal:
             self.status = status
-            self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos,
-                           goal=goal)
+            self.show_status(status=self.status, wpos=self.wpos,
+                             mpos=self.mpos, goal=goal)
 
             while True:
                 try:
@@ -440,8 +424,8 @@ class Mill(object):
 
     def setup(self):
         self.status = "Waiting for idle"
-        self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos,
-                       goal="Idle")
+        self.show_status(status=self.status, wpos=self.wpos, mpos=self.mpos,
+                         goal="Idle")
 
         while True:
             try:
@@ -460,7 +444,7 @@ class Mill(object):
         #        break
 
         self.wait_for_idle()
-        self.status_cb(status="Idle", wpos=self.wpos, mpos=self.mpos, goal="")
+        self.show_status(status="Idle", wpos=self.wpos, mpos=self.mpos, goal="")
         self.get_parser_state()
         self.wait_for_idle()
         self.get_grbl_params()
@@ -486,7 +470,7 @@ class Mill(object):
 
     def home(self):
         self.status = "Waiting for idle"
-        self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos,
+        self.show_status(status=self.status, wpos=self.wpos, mpos=self.mpos,
                 goal="Idle")
         self.wait_for_idle("Idle", timeout=90)
         self.comms.clear()
@@ -500,7 +484,7 @@ class Mill(object):
         self._handle_response(response)
         self.send("$H")
         self.status = "Waiting for Homing"
-        self.status_cb(status=self.status, wpos=self.wpos, mpos=self.mpos)
+        self.show_status(status=self.status, wpos=self.wpos, mpos=self.mpos)
         self.wait_for_idle("Home", timeout=90)
         self.send(gcode.G55())
         response = self.comms.readline()
@@ -510,7 +494,7 @@ class Mill(object):
         self._handle_response(response)
 
     def reset(self):
-        self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
+        self.show_status(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
         _signal.alarm(0)
         self.show_status(cmd="reset")
@@ -520,13 +504,13 @@ class Mill(object):
         response = self.comms.readline()
         self.show_status(cmd="reset")
         self.comms.write("\x18")
-        self.status_cb(status="Resetting", wpos=self.wpos, mpos=self.mpos)
+        self.show_status(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self._handle_post_reset()
         if self.wpos.z < 10 and self.mpos.z > 90:
             self.send(gcode.G1(z=-10,f=10))
 
     def park(self):
-        self.status_cb(status="Parking", wpos=self.wpos, mpos=self.mpos)
+        self.show_status(status="Parking", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
         cmds = [
             gcode.G1(end={'z':50}, f=20),

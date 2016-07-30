@@ -1,0 +1,12 @@
+#!/bin/bash
+set -e
+
+export PYTHONPATH=$PWD
+if [ -x "$1" ]; then
+	exec "$@"
+elif [ -x "$PWD/utils/$1" ]; then
+	exec "$PWD/utils/""$@"
+else
+	echo "\"$1\": Command not found." 1>&2
+	exit 1
+fi

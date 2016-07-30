@@ -45,16 +45,16 @@ if __name__ == '__main__':
 
     cmds = []
     if settings.raise_z:
-        cmd = fmj.gcode.G0(end={'z':50})
+        cmd = mill.gcode.G0(end={'z':50})
         cmds.append(cmd)
-        cmd = fmj.gcode.F(f=50)
+        cmd = mill.gcode.F(f=50)
         cmds.append(cmd)
 
     if settings.feed <= 0:
-        code = fmj.gcode.G0
+        code = mill.gcode.G0
         args = {}
     else:
-        code = fmj.gcode.G1
+        code = mill.gcode.G1
         args = {'f':settings.feed}
 
     if settings.position_present:

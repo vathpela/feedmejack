@@ -1,21 +1,46 @@
 #!/usr/bin/python3
 
 import sys
+import math
+
 from decimal import Decimal
+
 from .utility import clean
 from . import utility
 from .tools import get_tool
+from .exceptions import *
 
 class Settings():
-    def __init__(self, d=None):
+    def __init__(self, d=None, max_feed_rate=math.inf):
         self.__dict__ = d
+        self._max_feed_rate = max_feed_rate
+
+    @property
+    def feed(self):
+        if 'tool' in self.__dict__:
+            tmfr = self.tool.max_feed_rate
+        else:
+            tmfr = self.mill.f
+        if 'feed' in self.__dict__:
+            fr = self.__dict__['feed']
+        else:
+            fr = self.mill.f
+        if fr is None:
+            try:
+                fr = self.mill.f
+            except InvalidFeedRate:
+                fr = tmfr
+        else:
+            fr = min(tmfr, fr)
+
+        return min(fr, self._max_feed_rate)
 
 def default_tool_settings():
     return {'tool_width': 50.0,
             'tool_len': 2.0,
             'tool_class': None,
             'tool_offset': 0.0,
-            'feed': 0,
+            'feed': None,
             }
 
 def parse_tool_settings(settings=None, argv=sys.argv):

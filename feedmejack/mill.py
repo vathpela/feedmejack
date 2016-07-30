@@ -98,13 +98,26 @@ class Comms(object):
             self.settings.mill.show_status(timeout=True)
             raise Timeout
 
+class GCodeProxy():
+    def __init__(self, settings):
+        self.settings = settings
+        self.mill = settings.mill
+
+    def __getattr__(self, name):
+        attr = getattr(self.settings.mill._gcode, name)
+        attr.settings = self.settings
+        attr.mill = self.mill
+        return attr
+
 class Mill(object):
     def __init__(self, settings=None, tool=None):
         self.settings = settings
         self.settings.mill = self
         self.comms = Comms(settings)
 
-        self._f = 100
+        self._gcode = gcode
+        self._gcode_proxy = GCodeProxy(settings)
+        self._f = None
 
         self.maxsent = 2
         self.numsent = 0
@@ -134,18 +147,29 @@ class Mill(object):
                          target="")
 
     @property
+    def gcode(self):
+        return self._gcode_proxy
+
+    @property
     def _timeout(self):
         raise AttributeError
 
     @property
     def f(self):
-        return int(self._f)
+        if self._f is None:
+            raise InvalidFeedRate
+        return self._f
 
     def send(self, cmd):
         self.show_status(cmd=cmd)
-        cmd = str(cmd)
-        cmd = "%s\n" % (cmd.strip(),)
-        self.comms.write(cmd)
+        s = str(cmd)
+        s = "%s\n" % (s.strip(),)
+        self.comms.write(s)
+        if isinstance(cmd, gcode.F):
+            self.get_parser_state()
+            for item in self.parser_state:
+                if item[0] == 'F':
+                    self._f = clean(item[1:])
 
     def _handle_error(self, response):
         self.show_status(cmd="!")

@@ -64,10 +64,10 @@ if __name__ == '__main__':
     y_range = [settings.start_y+r, settings.end_y-r]
 
     coords = [
-        [{'z':50}, fmj.gcode.G0, None],
-        [{'x':x_range[0], 'y': y_range[0], 'z':50}, fmj.gcode.G0, None],
+        [{'z':50}, mill.gcode.G0, None],
+        [{'x':x_range[0], 'y': y_range[0], 'z':50}, mill.gcode.G0, None],
         [{'x':x_range[0], 'y': y_range[0], 'z':z_max+z_step},
-            fmj.gcode.G0, None],
+            mill.gcode.G0, None],
         ]
 
     notch_x_range = [x_range[1], x_range[1] + Decimal(12.7)]
@@ -77,12 +77,12 @@ if __name__ == '__main__':
     for z in frange(z_max, z_min, -z_step):
         # put a notch at the bottom for our error spot
         coords += [
-            [{'z':z+z_step}, fmj.gcode.G0, None],
-            [{'x':x_range[0], 'y': y_range[0]}, fmj.gcode.G0, None],
-            [{'x':x_range[0], 'y': y_range[0]-4, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_range[0], 'y': y_range[0], 'z':z}, fmj.gcode.G1, f],
+            [{'z':z+z_step}, mill.gcode.G0, None],
+            [{'x':x_range[0], 'y': y_range[0]}, mill.gcode.G0, None],
+            [{'x':x_range[0], 'y': y_range[0]-4, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_range[0], 'y': y_range[0], 'z':z}, mill.gcode.G1, f],
             [{'x':x_range[0], 'y': y_range[0], 'z':z+z_step},
-                fmj.gcode.G0, None],
+                mill.gcode.G0, None],
             ]
 
         fwd = True
@@ -90,75 +90,75 @@ if __name__ == '__main__':
         # mill out the main box
         for y in frange(y_range[0], y_range[1], r):
             coords += [
-                [{'z': z+z_step}, fmj.gcode.G1, f*2],
-                [{'x':x_range[0], 'y':y}, fmj.gcode.G1, f*2],
-                [{'x':x_range[1], 'y':y, 'z': z}, fmj.gcode.G1, f*2],
-                [{'x':x_range[0], 'y':y, 'z': z}, fmj.gcode.G1, f*2],
+                [{'z': z+z_step}, mill.gcode.G1, f*2],
+                [{'x':x_range[0], 'y':y}, mill.gcode.G1, f*2],
+                [{'x':x_range[1], 'y':y, 'z': z}, mill.gcode.G1, f*2],
+                [{'x':x_range[0], 'y':y, 'z': z}, mill.gcode.G1, f*2],
                 ]
 
         # run around the border once
         coords += [
-            [{'z':z+z_step}, fmj.gcode.G0, None],
-            [{'x':x_range[0], 'y':y_range[0]}, fmj.gcode.G0, None],
-            [{'z':z}, fmj.gcode.G1, f*2],
-            [{'x':x_range[0], 'y':y_range[0]}, fmj.gcode.G1, f*2],
-            [{'x':x_range[0], 'y':y_range[1]}, fmj.gcode.G1, f*2],
-            [{'x':x_range[1], 'y':y_range[1]}, fmj.gcode.G1, f*2],
-            [{'x':x_range[1], 'y':y_range[0]}, fmj.gcode.G1, f*2],
-            [{'x':x_range[0], 'y':y_range[0]}, fmj.gcode.G1, f*2],
-            [{'z':z+z_step}, fmj.gcode.G0, None],
-            [{'x':x_range[0], 'y':y_range[0]}, fmj.gcode.G0, None],
+            [{'z':z+z_step}, mill.gcode.G0, None],
+            [{'x':x_range[0], 'y':y_range[0]}, mill.gcode.G0, None],
+            [{'z':z}, mill.gcode.G1, f*2],
+            [{'x':x_range[0], 'y':y_range[0]}, mill.gcode.G1, f*2],
+            [{'x':x_range[0], 'y':y_range[1]}, mill.gcode.G1, f*2],
+            [{'x':x_range[1], 'y':y_range[1]}, mill.gcode.G1, f*2],
+            [{'x':x_range[1], 'y':y_range[0]}, mill.gcode.G1, f*2],
+            [{'x':x_range[0], 'y':y_range[0]}, mill.gcode.G1, f*2],
+            [{'z':z+z_step}, mill.gcode.G0, None],
+            [{'x':x_range[0], 'y':y_range[0]}, mill.gcode.G0, None],
         ]
 
         # notch out the place for our dovetail bit
         for y in frange(notch_y_range[0], notch_y_range[1], r):
             coords += [
-                [{'z':z+z_step}, fmj.gcode.G0, None],
-                [{'x':notch_x_range[0], 'y':y}, fmj.gcode.G0, None],
-                [{'x':notch_x_range[1], 'y':y, 'z':z}, fmj.gcode.G1, f*2],
-                [{'x':notch_x_range[0], 'y':y, 'z':z}, fmj.gcode.G1, f*2],
+                [{'z':z+z_step}, mill.gcode.G0, None],
+                [{'x':notch_x_range[0], 'y':y}, mill.gcode.G0, None],
+                [{'x':notch_x_range[1], 'y':y, 'z':z}, mill.gcode.G1, f*2],
+                [{'x':notch_x_range[0], 'y':y, 'z':z}, mill.gcode.G1, f*2],
                 ]
 
         # clean the border of the notch
         coords += [
             [{'x':notch_x_range[0], 'y':notch_y_range[0], 'z':z},
-                fmj.gcode.G0, None],
+                mill.gcode.G0, None],
             [{'x':notch_x_range[0], 'y':notch_y_range[1], 'z':z},
-                fmj.gcode.G0, None],
+                mill.gcode.G0, None],
             [{'x':notch_x_range[1], 'y':notch_y_range[1], 'z':z},
-                fmj.gcode.G0, None],
+                mill.gcode.G0, None],
             [{'x':notch_x_range[1], 'y':notch_y_range[0], 'z':z},
-                fmj.gcode.G0, None],
+                mill.gcode.G0, None],
             [{'x':notch_x_range[0], 'y':notch_y_range[0], 'z':z},
-                fmj.gcode.G0, None],
-            [{'z':z+z_step}, fmj.gcode.G0, None],
-            [{'x':x_range[0], 'y':y_range[0]}, fmj.gcode.G0, None],
+                mill.gcode.G0, None],
+            [{'z':z+z_step}, mill.gcode.G0, None],
+            [{'x':x_range[0], 'y':y_range[0]}, mill.gcode.G0, None],
             ]
 
         coords += [
-            [{'z':z_max+1}, fmj.gcode.G0, None],
-            [{'x':x_range[0], 'y':y_range[0]}, fmj.gcode.G0, None],
-            [{'z':z+z_step}, fmj.gcode.G1, f],
-            [{'x':x_range[0]-r, 'y':y_range[0]-r, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_range[0], 'y':y_range[0]}, fmj.gcode.G1, f],
+            [{'z':z_max+1}, mill.gcode.G0, None],
+            [{'x':x_range[0], 'y':y_range[0]}, mill.gcode.G0, None],
+            [{'z':z+z_step}, mill.gcode.G1, f],
+            [{'x':x_range[0]-r, 'y':y_range[0]-r, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_range[0], 'y':y_range[0]}, mill.gcode.G1, f],
 
-            [{'z':z_max+1}, fmj.gcode.G0, None],
-            [{'x':x_range[0], 'y':y_range[1]}, fmj.gcode.G0, None],
-            [{'z':z+z_step}, fmj.gcode.G1, f],
-            [{'x':x_range[0]-r, 'y':y_range[1]+r, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_range[0], 'y':y_range[1]}, fmj.gcode.G1, f],
+            [{'z':z_max+1}, mill.gcode.G0, None],
+            [{'x':x_range[0], 'y':y_range[1]}, mill.gcode.G0, None],
+            [{'z':z+z_step}, mill.gcode.G1, f],
+            [{'x':x_range[0]-r, 'y':y_range[1]+r, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_range[0], 'y':y_range[1]}, mill.gcode.G1, f],
 
-            [{'z':z_max+1}, fmj.gcode.G0, None],
-            [{'x':x_range[1], 'y':y_range[1]}, fmj.gcode.G0, None],
-            [{'z':z+z_step}, fmj.gcode.G1, f],
-            [{'x':x_range[1]+r, 'y':y_range[1]+r, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_range[1], 'y':y_range[1]}, fmj.gcode.G1, f],
+            [{'z':z_max+1}, mill.gcode.G0, None],
+            [{'x':x_range[1], 'y':y_range[1]}, mill.gcode.G0, None],
+            [{'z':z+z_step}, mill.gcode.G1, f],
+            [{'x':x_range[1]+r, 'y':y_range[1]+r, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_range[1], 'y':y_range[1]}, mill.gcode.G1, f],
 
-            [{'z':z_max+1}, fmj.gcode.G0, None],
-            [{'x':x_range[1], 'y':y_range[0]}, fmj.gcode.G0, None],
-            [{'z':z+z_step}, fmj.gcode.G1, f],
-            [{'x':x_range[1]+r, 'y':y_range[0]-r, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_range[1], 'y':y_range[0]}, fmj.gcode.G1, f],
+            [{'z':z_max+1}, mill.gcode.G0, None],
+            [{'x':x_range[1], 'y':y_range[0]}, mill.gcode.G0, None],
+            [{'z':z+z_step}, mill.gcode.G1, f],
+            [{'x':x_range[1]+r, 'y':y_range[0]-r, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_range[1], 'y':y_range[0]}, mill.gcode.G1, f],
             ]
 
 

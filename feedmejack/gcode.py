@@ -1,3 +1,33 @@
+#!/usr/bin/python3
+
+import math
+
+from .exceptions import *
+
+mill = None
+
+class GCodeStandin():
+    def __init__(self, name):
+        self.name = name
+
+    def make(self, **kwds):
+        mill = kwds['mill']
+        attr = getattr(mill.gcode, self.name)
+        r = attr(**kwds)
+        if 'f' in r._data and r._data['f'] in [None, math.inf]:
+            r._data['f'] = mill.f
+        if r._data['f'] in [None, math.inf]:
+            raise InvalidFeedRate
+
+        # if this is 'F' and mill.f is set:
+        #     1) this is an attribute of some other command
+        # and 2) a feed rate has been established
+        # so remove the property if it's the same rate, to save buffer.
+        if self.name == 'F' and r._data['f'] == mill.f:
+            return None
+
+        return r
+
 class GCodeMaker(object):
     _cmd = ""
     _order = []
@@ -8,6 +38,10 @@ class GCodeMaker(object):
         self.cmd = self._cmd
         self.order = self._order
         self.tmpls = self._tmpls
+        for attr in ['mill', 'settings']:
+            if attr in data:
+                setattr(self, attr, data[attr])
+                del data[attr]
         self._data = data
 
     def set(self, data):
@@ -27,27 +61,55 @@ class GCodeMaker(object):
         else:
             s = "%s" % (self._cmd,)
         for x in self._order:
+            tmpl = None
+            key = None
+            val = None
             if isinstance(x, dict):
                 for k,vals in x.items():
                     for v in vals:
                         try:
-                            s += " %s" % (self._tmpls[k][v] % args[k][v])
+                            tmpl = self._tmpls[k][v]
+                            val = args[k][v]
+                            key = v
+                            break
                         except KeyError:
                             pass
                     break
             elif isinstance(x, list) or isinstance(x, tuple):
                 for i in range(1, len(x)):
                     try:
-                        s += " %s" % (self._tmpls[x[i]] % args[x[i]])
+                        tmpl = self._tmpls[x[i]]
+                        val = args[x[i]]
+                        key = x[i]
+                        break
                     except KeyError:
                         pass
             else:
                 try:
-                    s += " %s" % (self._tmpls[x] % args[x])
+                    tmpl = self._tmpls[x]
+                    val = args[x]
+                    key = x
                 except KeyError:
                     pass
+            if tmpl is None:
+                raise InvalidGCodeTemplate(self)
+            if val is None:
+                raise InvalidGCodeValue("%s" % (self.__class__,))
 
-        return "%s" % (s,)
+            if isinstance(tmpl, GCodeStandin):
+                kwds = {
+                    key:val,
+                    'settings': self.settings,
+                    'mill': self.mill,
+                    }
+                x = tmpl.make(**kwds)
+                if not x is None:
+                    s += " %s" % (x,)
+            else:
+                s += " %s" % (tmpl % val)
+
+        s = "%s" % (s,)
+        return s.strip()
 
     def strip(self, *args, **kwds):
         r = str(self)
@@ -81,10 +143,19 @@ class F(GCodeMaker):
     _tmpls = {'f':"F%0.03f"}
     _noname = True
 
+    def __init__(self, **data):
+        GCodeMaker.__init__(self, **data)
+
+    @property
+    def f(self):
+        if not 'f' in self._data or self._data['f'] in [None, math.inf]:
+            self._data['f'] = self.mill.f
+        return self._data['f']
+
 class G0(GCodeMaker):
     _cmd = "G0"
-    _order = ['f', {'end': ['x', 'y', 'z']}]
-    _tmpls = {'f':"F%0.03f",
+    _order = [{'end': ['x', 'y', 'z']}]
+    _tmpls = {
                'end': { 'x':"X%0.03f", 'y': "Y%0.03f", 'z': "Z%0.03f" }
              }
     _target_order = [{'end': ['x', 'y', 'z']}]
@@ -95,7 +166,7 @@ class G0(GCodeMaker):
 class G1(GCodeMaker):
     _cmd = "G1"
     _order = ['f', {'end': ['x', 'y', 'z']}]
-    _tmpls = {'f':"F%0.03f",
+    _tmpls = {'f':GCodeStandin(name="F"),
                'end': { 'x':"X%0.03f", 'y': "Y%0.03f", 'z': "Z%0.03f" }
              }
     _target_order = [{'end': ['x', 'y', 'z']}]
@@ -173,5 +244,3 @@ class G92(GCodeMaker):
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)
-
-

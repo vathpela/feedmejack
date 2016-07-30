@@ -61,31 +61,31 @@ if __name__ == '__main__':
     y_end = clean(y_end + r * Decimal(1.05))
 
     coords = [
-        [{'z':50}, fmj.gcode.G0, None],
-        [{'x':x_start, 'y': y_start, 'z':50}, fmj.gcode.G0, None],
+        [{'z':50}, mill.gcode.G0, None],
+        [{'x':x_start, 'y': y_start, 'z':50}, mill.gcode.G0, None],
         [{'x':x_start, 'y': y_start, 'z':z_start+z_step},
-            fmj.gcode.G0, None],
+            mill.gcode.G0, None],
         ]
 
     for z in frange(z_start, z_end, -z_step):
         for y in frange(y_start, y_end, r):
             coords += [
-                [{'x':x_start, 'y':y, 'z':z+z_step}, fmj.gcode.G1, f],
-                [{'x':x_end, 'y':y, 'z':z}, fmj.gcode.G1, f],
-                [{'x':x_start, 'y':y, 'z':z}, fmj.gcode.G1, f],
+                [{'x':x_start, 'y':y, 'z':z+z_step}, mill.gcode.G1, f],
+                [{'x':x_end, 'y':y, 'z':z}, mill.gcode.G1, f],
+                [{'x':x_start, 'y':y, 'z':z}, mill.gcode.G1, f],
                 ]
 
         coords += [
-            [{'z':z+z_step}, fmj.gcode.G0, None],
-            [{'x':x_start, 'y':y_start, 'z':z+z_step}, fmj.gcode.G1, f],
-            [{'x':x_start, 'y':y_end, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_end, 'y':y_end, 'z':z+z_step}, fmj.gcode.G1, f],
-            [{'x':x_end, 'y':y_start, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_start, 'y':y_start, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_start, 'y':y_end, 'z':z+z_step}, fmj.gcode.G1, f],
-            [{'x':x_end, 'y':y_end, 'z':z}, fmj.gcode.G1, f],
-            [{'x':x_end, 'y':y_start, 'z':z+z_step}, fmj.gcode.G1, f],
-            [{'x':x_start, 'y':y_start, 'z':z}, fmj.gcode.G1, f],
+            [{'z':z+z_step}, mill.gcode.G0, None],
+            [{'x':x_start, 'y':y_start, 'z':z+z_step}, mill.gcode.G1, f],
+            [{'x':x_start, 'y':y_end, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_end, 'y':y_end, 'z':z+z_step}, mill.gcode.G1, f],
+            [{'x':x_end, 'y':y_start, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_start, 'y':y_start, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_start, 'y':y_end, 'z':z+z_step}, mill.gcode.G1, f],
+            [{'x':x_end, 'y':y_end, 'z':z}, mill.gcode.G1, f],
+            [{'x':x_end, 'y':y_start, 'z':z+z_step}, mill.gcode.G1, f],
+            [{'x':x_start, 'y':y_start, 'z':z}, mill.gcode.G1, f],
             ]
 
     xz_variance = [0, -0.75]

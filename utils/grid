@@ -361,26 +361,26 @@ if __name__ == '__main__':
     x_range = [70, 201]
 
     coords = [
-        [{'z':50}, fmj.gcode.G0, None],
-        [{'x':x_range[0], 'y': y_range[0], 'z':z+2}, fmj.gcode.G0, None],
+        [{'z':50}, mill.gcode.G0, None],
+        [{'x':x_range[0], 'y': y_range[0], 'z':z+2}, mill.gcode.G0, None],
         ]
 
     for x in range(x_range[0], x_range[1], 10):
         coords += [
-            [{'x':x, 'y':y_range[0], 'z':z+1}, fmj.gcode.G0, None],
-            [{'x':x, 'y':y_range[0], 'z':z}, fmj.gcode.G0, None],
-            [{'x':x, 'y':y_range[1], 'z':z}, fmj.gcode.G1, f],
-            [{'x':x, 'y':y_range[1], 'z':z+1}, fmj.gcode.G0, None],
-            [{'x':x, 'y':y_range[0], 'z':z+1}, fmj.gcode.G0, None],
+            [{'x':x, 'y':y_range[0], 'z':z+1}, mill.gcode.G0, None],
+            [{'x':x, 'y':y_range[0], 'z':z}, mill.gcode.G0, None],
+            [{'x':x, 'y':y_range[1], 'z':z}, mill.gcode.G1, f],
+            [{'x':x, 'y':y_range[1], 'z':z+1}, mill.gcode.G0, None],
+            [{'x':x, 'y':y_range[0], 'z':z+1}, mill.gcode.G0, None],
             ]
 
     for y in range(y_range[0], y_range[1], 10):
         coords += [
-            [{'y':y, 'x':x_range[0], 'z':z+1}, fmj.gcode.G0, None],
-            [{'y':y, 'x':x_range[0], 'z':z}, fmj.gcode.G0, None],
-            [{'y':y, 'x':x_range[1], 'z':z}, fmj.gcode.G1, f],
-            [{'y':y, 'x':x_range[1], 'z':z+1}, fmj.gcode.G0, None],
-            [{'y':y, 'x':x_range[0], 'z':z+1}, fmj.gcode.G0, None],
+            [{'y':y, 'x':x_range[0], 'z':z+1}, mill.gcode.G0, None],
+            [{'y':y, 'x':x_range[0], 'z':z}, mill.gcode.G0, None],
+            [{'y':y, 'x':x_range[1], 'z':z}, mill.gcode.G1, f],
+            [{'y':y, 'x':x_range[1], 'z':z+1}, mill.gcode.G0, None],
+            [{'y':y, 'x':x_range[0], 'z':z+1}, mill.gcode.G0, None],
             ]
 
     xz_variance = [0, -0.75]

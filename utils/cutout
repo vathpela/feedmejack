@@ -343,7 +343,7 @@ if __name__ == '__main__':
 
     kwds = {}
     if kwds:
-        cmd = fmj.gcode.G0(end=kwds)
+        cmd = mill.gcode.G0(end=kwds)
         mill.send(cmd)
     mill.wait_for_idle()
 
@@ -354,13 +354,13 @@ if __name__ == '__main__':
         z = Decimal(19.35)
         f = 10
     cmds = [
-            fmj.gcode.G0(end={'x':121, 'y':190, 'z':z+7}),
-            fmj.gcode.G1(end={'x':121, 'y':190, 'z':z}, f=f),
-            fmj.gcode.G1(end={'x':121, 'y':200, 'z':z}, f=f),
-            fmj.gcode.G1(end={'x':121, 'y':166, 'z':z}, f=f),
-            fmj.gcode.G1(end={'x':122.5, 'y':166, 'z':z}, f=f),
-            fmj.gcode.G3(x=128.5, y=160, i=6 ,f=f),
-            fmj.gcode.G1(end={'x':141, 'y':160}, f=f),
+            mill.gcode.G0(end={'x':121, 'y':190, 'z':z+7}),
+            mill.gcode.G1(end={'x':121, 'y':190, 'z':z}, f=f),
+            mill.gcode.G1(end={'x':121, 'y':200, 'z':z}, f=f),
+            mill.gcode.G1(end={'x':121, 'y':166, 'z':z}, f=f),
+            mill.gcode.G1(end={'x':122.5, 'y':166, 'z':z}, f=f),
+            mill.gcode.G3(x=128.5, y=160, i=6 ,f=f),
+            mill.gcode.G1(end={'x':141, 'y':160}, f=f),
             ]
 
     for cmd in cmds:

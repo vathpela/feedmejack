@@ -14,6 +14,7 @@ class Tool(object):
         self._max_feed_rate = int(max_feed_rate)
         self.feed_rate_limit = None
         self._z = offset
+        self._dynamic_z = 0
         self.notes = notes
 
     def __str__(self):
@@ -21,6 +22,9 @@ class Tool(object):
 
     def __repr__(self):
         return '<%s %s %s>' % (self._strname, self.name, self.location)
+
+    def set_dynamic_offset(self, offset=0):
+        self._dynamic_z = offset
 
     @property
     def location(self):
@@ -46,7 +50,7 @@ class Tool(object):
 
     @property
     def z(self):
-        return self._z
+        return self._z + self._dynamic_z
 
 class EndMill(Tool):
     _strname = "EndMill"

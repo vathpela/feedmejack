@@ -121,4 +121,6 @@ def find_tool(max_width=None, min_length=None, tool_class=None):
         yield tool
     raise StopIteration
 
-__all__ = ["Tool", "EndMill", "find_tool"]
+__all__ = [ "CompressionMill", "CuttingMill", "Dovetail", "Engraver",
+            "GearCutter",
+            "find_tool", "Tool", "EndMill"]

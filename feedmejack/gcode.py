@@ -86,7 +86,8 @@ class GCodeMaker(object):
                 except KeyError:
                     pass
 
-        return "%s" % (s,)
+        s = "%s" % (s,)
+        return s.strip()
 
     def estimate_final_pos(self, **args):
         pass

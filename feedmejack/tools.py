@@ -70,6 +70,9 @@ class Engraver(Tool):
 class Dovetail(Tool):
     _strname = "Dovetail"
 
+class BottomCleaning(Tool):
+    _strname = "BottomCleaning"
+
 tools = [
         EndMill("case C", "light pink 1mm", 1.0, 9.5, 20),
         EndMill("case B", "black 0.75mm", 0.75, 9.5, 20),
@@ -95,6 +98,8 @@ tools = [
                 notes="the point is quite a bit longer than 0.1"),
         Dovetail("wood bit selector", "1/2\" dovetail bit", 12.7, 12.7, 27,
                 notes="1/4\" at the top"),
+        BottomCleaning("free", "3/4 inch bottom cleaning bit", 19.05, 12.7, 25,
+                notes="Roman Carbide DC1257"),
         ]
 
 def find_tool(max_width=None, min_length=None, tool_class=None):

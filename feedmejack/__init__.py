@@ -477,5 +477,23 @@ class Mill(object):
         if self.wpos.z < 10 and self.mpos.z > 90:
             self.send(gcode.G1(z=-10,f=10))
 
+    def park(self):
+        self.status_cb(status="Parking", wpos=self.wpos, mpos=self.mpos)
+        self.timeouts = 0
+        z = self.wpos.z
+        z0 = z+1
+        if z0 < 50:
+            z1 = 50
+        else:
+            z1 = z0+1
+        cmds = [
+            gcode.G1(end={'z':z0}, f=20),
+            gcode.G0(end={'z':z1}),
+            gcode.G0(end={'x':20, 'y':290}),
+            ]
+        for cmd in cmds:
+            self.send(cmd)
+            self.wait_for_idle()
+
 __all__ = ['gcode', 'masks', 'rasters', 'shapes', 'tools', 'tracers', \
            'xyz']

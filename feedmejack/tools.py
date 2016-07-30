@@ -1,21 +1,26 @@
 #!/usr/bin/python3
 
+import math
+
 from .utility import *
 
 class Tool(object):
     _strname = "Tool"
 
     def __init__(self, location, name, width, length, offset, \
-            max_feed_rate=100, notes=None):
-        self._location = location
-        self._name = name
-        self._width = clean(width)
-        self._length = clean(length)
-        self._max_feed_rate = int(max_feed_rate)
-        self.feed_rate_limit = None
+            max_feed_rate=math.inf, min_feed_rate=0, notes=None):
+        self.location = location
+        self.name = name
+        self.width = clean(width)
+        self.length = clean(length)
+        self.max_feed_rate = max_feed_rate
+        if max_feed_rate != math.inf:
+            self.max_feed_rate = clean(self.max_feed_rate)
+        self.min_feed_rate = clean(min_feed_rate)
+        self.notes = notes
+
         self._z = offset
         self._dynamic_z = 0
-        self.notes = notes
 
     def __str__(self):
         return self.name
@@ -25,28 +30,6 @@ class Tool(object):
 
     def set_dynamic_offset(self, offset=0):
         self._dynamic_z = offset
-
-    @property
-    def location(self):
-        return self._location
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def width(self):
-        return self._width
-
-    @property
-    def length(self):
-        return self._length
-
-    @property
-    def max_feed_rate(self):
-        if self.feed_rate_limit:
-            return min(self.feed_rate_limit, self._max_feed_rate)
-        return self._max_feed_rate
 
     @property
     def z(self):

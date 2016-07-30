@@ -6,8 +6,6 @@ import feedmejack as fmj
 from feedmejack.utility import *
 from decimal import Decimal
 
-fmj.utility.rep = Reporter("/dev/serial/by-name/wyse")
-
 if __name__ == '__main__':
     defaults = {}
     defaults.update(fmj.policy.default_tool_settings())
@@ -48,6 +46,8 @@ if __name__ == '__main__':
     cmds = []
     if settings.raise_z:
         cmd = fmj.gcode.G0(end={'z':50})
+        cmds.append(cmd)
+        cmd = fmj.gcode.F(f=50)
         cmds.append(cmd)
 
     if settings.feed <= 0:

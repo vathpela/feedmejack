@@ -17,30 +17,24 @@ class Settings():
 
     @property
     def feed(self):
+        candidates = [self.mill.f, self._max_feed_rate]
         if 'tool' in self.__dict__:
-            tmfr = self.tool.max_feed_rate
-        else:
-            tmfr = self.mill.f
+            candidates.append(self.tool.max_feed_rate)
         if 'feed' in self.__dict__:
-            fr = self.__dict__['feed']
-        else:
-            fr = self.mill.f
-        if fr is None:
-            try:
-                fr = self.mill.f
-            except InvalidFeedRate:
-                fr = tmfr
-        else:
-            fr = min(tmfr, fr)
+            candidates.append(self.__dict__['feed'])
+        candidates = filter(lambda x: x not in [None, 0, math.inf], candidates)
+        if not candidates:
+            raise InvalidFeedRate
 
-        return min(fr, self._max_feed_rate)
+        return min(candidates)
 
-def default_tool_settings():
-    return {'tool_width': 50.0,
-            'tool_len': 2.0,
-            'tool_class': None,
-            'tool_offset': 0.0,
-            'feed': None,
+def default_tool_settings(width=50.0, length=2.0, cls=None, offset=0.0,
+                          feed=None):
+    return {'tool_width': width,
+            'tool_len': length,
+            'tool_class': cls,
+            'tool_offset': offset,
+            'feed': feed,
             }
 
 def parse_tool_settings(settings=None, argv=sys.argv):

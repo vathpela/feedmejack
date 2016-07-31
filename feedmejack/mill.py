@@ -156,8 +156,6 @@ class Mill(object):
 
     @property
     def f(self):
-        if self._f is None:
-            raise InvalidFeedRate
         return self._f
 
     def send(self, cmd):
@@ -166,6 +164,7 @@ class Mill(object):
         s = "%s\n" % (s.strip(),)
         self.comms.write(s)
         if isinstance(cmd, gcode.F):
+            self.wait_for_idle()
             self.get_parser_state()
             for item in self.parser_state:
                 if item[0] == 'F':

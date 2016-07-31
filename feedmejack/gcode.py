@@ -3,30 +3,64 @@
 import math
 
 from .exceptions import *
+from .utility import *
 
 mill = None
 
 class GCodeStandin():
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, **kwds):
+        self.__dict__ = kwds
+        self.mill = self.settings.mill
 
-    def make(self, **kwds):
-        mill = kwds['mill']
-        attr = getattr(mill.gcode, self.name)
-        r = attr(**kwds)
-        if 'f' in r._data and r._data['f'] in [None, math.inf]:
-            r._data['f'] = mill.f
-        if r._data['f'] in [None, math.inf]:
+    @property
+    def value(self):
+        if self._name in self.__dict__:
+            val = self.__dict__[self._name]
+        else:
+            val = None
+        return val
+
+    @property
+    def tmpl(self):
+        if hasattr(self, '_tmpl'):
+            return self._tmpl
+        return "%s%%s" % (self._cmd,)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        if self.value is None:
+            return ""
+        s = self.tmpl % self.value
+        return s.strip()
+
+class FStandin(GCodeStandin):
+    def __init__(self, *args, **kwds):
+        GCodeStandin.__init__(self, *args, **kwds)
+
+    @property
+    def value(self):
+        if self.mill.f:
+            candidates = [self.mill.f]
+        else:
+            candidates = [self.settings.feed]
+
+        if self._name in self.__dict__:
+            v = self.__dict__[self._name]
+            if not v is None:
+                candidates.append(clean(v))
+        f = min(filter(lambda x: x not in [0, None, math.inf], candidates))
+        if not f:
             raise InvalidFeedRate
 
         # if this is 'F' and mill.f is set:
         #     1) this is an attribute of some other command
         # and 2) a feed rate has been established
         # so remove the property if it's the same rate, to save buffer.
-        if self.name == 'F' and r._data['f'] == mill.f:
-            return None
-
-        return r
+        if f != self.mill.f:
+            return f
+        return None
 
 class GCodeMaker(object):
     _cmd = ""
@@ -55,60 +89,59 @@ class GCodeMaker(object):
     def __repr__(self):
         return self.__str__()
 
-    def string(self, **args):
-        if hasattr(self, '_noname') and self._noname:
-            s = ""
-        else:
-            s = "%s" % (self._cmd,)
-        for x in self._order:
-            tmpl = None
-            key = None
-            val = None
-            if isinstance(x, dict):
-                for k,vals in x.items():
-                    for v in vals:
-                        try:
-                            tmpl = self._tmpls[k][v]
-                            val = args[k][v]
-                            key = v
-                            break
-                        except KeyError:
-                            pass
-                    break
-            elif isinstance(x, list) or isinstance(x, tuple):
-                for i in range(1, len(x)):
-                    try:
-                        tmpl = self._tmpls[x[i]]
-                        val = args[x[i]]
-                        key = x[i]
-                        break
-                    except KeyError:
-                        pass
+    def _format(self, order, args, tmpls=None):
+        strs = []
+        if tmpls is None:
+            tmpls = self._tmpls
+        if isinstance(order, dict):
+            for name, new_order in order.items():
+                strs += self._format(new_order, args[name],
+                                     tmpls=self._tmpls[name])
+        elif isinstance(order, list) or isinstance(order, tuple):
+            for new_order in order:
+                try:
+                    arg = args[new_order]
+                except KeyError:
+                    continue
+                strs += self._format(new_order, arg, tmpls=tmpls[new_order])
+        elif isinstance(order, str):
+            if isinstance(args, dict):
+                try:
+                    args = args[order]
+                except KeyError:
+                    args = None
+            if isinstance(tmpls, dict):
+                tmpls = tmpls[order]
+            if isinstance(tmpls, type):
+                kwargs = {
+                    order: args,
+                    '_name': order,
+                    '_cmd': self._cmd
+                    }
+                obj = tmpls(settings=self.settings, **kwargs)
+                x = str(obj)
+                if x:
+                    strs.append(x)
+            elif args is None:
+                pass
             else:
                 try:
-                    tmpl = self._tmpls[x]
-                    val = args[x]
-                    key = x
-                except KeyError:
-                    pass
-            if tmpl is None:
-                raise InvalidGCodeTemplate(self)
-            if val is None:
-                raise InvalidGCodeValue("%s" % (self.__class__,))
+                    strs.append(tmpls % args)
+                except:
+                    print("could not format \"%s\" %% \"%s\"" % (tmpls,args))
+                    raise
 
-            if isinstance(tmpl, GCodeStandin):
-                kwds = {
-                    key:val,
-                    'settings': self.settings,
-                    'mill': self.mill,
-                    }
-                x = tmpl.make(**kwds)
-                if not x is None:
-                    s += " %s" % (x,)
-            else:
-                s += " %s" % (tmpl % val)
+        return strs
 
-        s = "%s" % (s,)
+    def string(self, **args):
+        if hasattr(self, '_noname') and self._noname:
+            strs = []
+        else:
+            strs = [self._cmd]
+        for x in self._order:
+            strs += self._format(x, args)
+
+        s = ' '.join(strs)
         return s.strip()
 
     def strip(self, *args, **kwds):
@@ -166,7 +199,7 @@ class G0(GCodeMaker):
 class G1(GCodeMaker):
     _cmd = "G1"
     _order = ['f', {'end': ['x', 'y', 'z']}]
-    _tmpls = {'f':GCodeStandin(name="F"),
+    _tmpls = {'f':FStandin,
                'end': { 'x':"X%0.03f", 'y': "Y%0.03f", 'z': "Z%0.03f" }
              }
     _target_order = [{'end': ['x', 'y', 'z']}]
@@ -179,7 +212,7 @@ class G2(GCodeMaker):
     _cmd = "G2"
     _order = ['f', 'x', 'y', 'z', 'i', 'j']
     _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f",
-            'f':"F%0.03f", 'i':"I%0.03f",'j':'J%0.03f'}
+            'f':FStandin, 'i':"I%0.03f",'j':'J%0.03f'}
     _target_order = ['x', 'y', 'z', 'i', 'j', 'f']
 
     def __init__(self, **data):
@@ -190,7 +223,7 @@ class G3(GCodeMaker):
     _cmd = "G3"
     _order = ['f', 'x', 'y', 'z', 'i', 'j']
     _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f",
-            'f':"F%0.03f", 'i':"I%0.03f",'j':'J%0.03f'}
+            'f':FStandin, 'i':"I%0.03f",'j':'J%0.03f'}
     _target_order = ['x', 'y', 'z', 'i', 'j', 'f']
 
     def __init__(self, **data):

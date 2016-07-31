@@ -57,7 +57,7 @@ class BottomCleaning(Tool):
     _strname = "BottomCleaning"
 
 tools = [
-        EndMill("case C", "light pink 1mm", 1.0, 9.5, 20),
+        EndMill("case C", "light pink 1mm", 1.0, 9.5, 20, max_feed_rate=100.0),
         EndMill("case B", "black 0.75mm", 0.75, 9.5, 20),
         EndMill("case A", "white 1.2mm", 1.2, 10, 19),
         EndMill("case A", "gray 1.1mm", 1.1, 10, 20),

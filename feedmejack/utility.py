@@ -3,13 +3,15 @@
 import os
 import sys
 import time
-from decimal import Decimal
+from decimal import Decimal as _Decimal
 
 def clean(val):
-        val = Decimal(val)
-        val = val.normalize()
-        val = val.quantize(Decimal("1.00000"))
-        return val
+    val = _Decimal(val)
+    val = val.normalize()
+    val = val.quantize(_Decimal("1.00000"))
+    return val
+
+Decimal = lambda x: clean(x)
 
 def frange(x, y, jump):
     x = clean(x)
@@ -339,4 +341,4 @@ class Reporter(object):
             self.show_status(time="%f" % (now,),
                     asctime="%s" % (time.asctime(time.localtime(now)),))
 
-__all__ = ["clean", "frange", "Reporter"]
+__all__ = ["clean", "frange", "Decimal", "Reporter"]

@@ -12,44 +12,25 @@ from . import tools
 from . import utility
 from .utility import *
 from . import xyz
+from .serial import *
 
-import array as _array
-import fcntl as _fcntl
-import os as _os
 import pdb as _pdb
 import selectors as _selectors
-import termios as _termios
 import time as _time
 import signal as _signal
 import sys as _sys
 
 from decimal import Decimal as _Decimal
 
-class Comms(object):
+class Comms(SerialPort):
     def __init__(self, settings):
-        self.settings = settings
-
-        self.fd = _os.open(self.settings.mill_tty, _os.O_RDWR)
-        self.device = _os.fdopen(self.fd, "w+b", buffering=0)
-
-        self.setspeed(self.settings.mill_tty_speed)
+        SerialPort.__init__(self, settings, "mill")
 
         self.selector = _selectors.PollSelector()
 
         self.buf = u""
 
         self.selector.register(self.device, _selectors.EVENT_READ)
-
-    def setspeed(self, speed):
-        TCGETS2 = 0x802C542A
-        TCSETS2 = 0x402C542B
-        BOTHER = 0o010000
-        buf = _array.array('i', [0] * 64)
-        _fcntl.ioctl(self.fd, TCGETS2, buf)
-        buf[2] &= ~_termios.CBAUD
-        buf[2] |= _termios.B115200
-        buf[9] = buf[10] = _termios.B115200
-        _fcntl.ioctl(self.fd, TCSETS2, buf)
 
     def clear(self):
         self.buf = u""

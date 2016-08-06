@@ -24,20 +24,39 @@ class GCodeStandin():
     def tmpl(self):
         if hasattr(self, '_tmpl'):
             return self._tmpl
-        return "%s%%s" % (self._cmd,)
+
+        if self.__class__.__name__ in self._cmd._tmpls:
+            return self._cmd._tmpls[self.__class__.__name__]
+
+        try:
+            if int(self.value) == self.value:
+                return "%s%%d" % (self.name.upper(),)
+        except:
+                pass
+
+        return "%s%%f" % (self._name.upper(),)
 
     def __repr__(self):
         return self.__str__()
 
     def __str__(self):
-        if self.value is None:
+        value = self.value
+        if value is None:
             return ""
-        s = self.tmpl % self.value
-        return s.strip()
+
+        s = self.tmpl % clean(value, quant="1.0")
+        s = s.strip()
+        try:
+            if value % 1 > 0:
+                s = s.rstrip(0)
+        except:
+            pass
+        return s
 
 class FStandin(GCodeStandin):
     def __init__(self, *args, **kwds):
         GCodeStandin.__init__(self, *args, **kwds)
+        self._name = 'F'
 
     @property
     def value(self):
@@ -59,7 +78,7 @@ class FStandin(GCodeStandin):
         # and 2) a feed rate has been established
         # so remove the property if it's the same rate, to save buffer.
         if f != self.mill.f:
-            return f
+            return f.quantize(1)
         return None
 
 class GCodeMaker(object):
@@ -116,7 +135,7 @@ class GCodeMaker(object):
                 kwargs = {
                     order: args,
                     '_name': order,
-                    '_cmd': self._cmd
+                    '_cmd': self,
                     }
                 obj = tmpls(settings=self.settings, **kwargs)
                 x = str(obj)
@@ -173,7 +192,7 @@ class GCodeMaker(object):
 class F(GCodeMaker):
     _cmd = "F"
     _order = ['f',]
-    _tmpls = {'f':"F%0.03f"}
+    _tmpls = {'f':"F%s"}
     _noname = True
 
     def __init__(self, **data):
@@ -189,7 +208,7 @@ class G0(GCodeMaker):
     _cmd = "G0"
     _order = [{'end': ['x', 'y', 'z']}]
     _tmpls = {
-               'end': { 'x':"X%0.03f", 'y': "Y%0.03f", 'z': "Z%0.03f" }
+               'end': { 'x':"X%s", 'y': "Y%s", 'z': "Z%s" }
              }
     _target_order = [{'end': ['x', 'y', 'z']}]
 
@@ -199,8 +218,8 @@ class G0(GCodeMaker):
 class G1(GCodeMaker):
     _cmd = "G1"
     _order = ['f', {'end': ['x', 'y', 'z']}]
-    _tmpls = {'f':FStandin,
-               'end': { 'x':"X%0.03f", 'y': "Y%0.03f", 'z': "Z%0.03f" }
+    _tmpls = {'f':FStandin, 'FStandin': 'F%d',
+               'end': { 'x':"X%s", 'y': "Y%s", 'z': "Z%s" }
              }
     _target_order = [{'end': ['x', 'y', 'z']}]
 
@@ -211,8 +230,8 @@ class G2(GCodeMaker):
     """clockwise arc"""
     _cmd = "G2"
     _order = ['f', 'x', 'y', 'z', 'i', 'j']
-    _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f",
-            'f':FStandin, 'i':"I%0.03f",'j':'J%0.03f'}
+    _tmpls = {'x':"X%s", 'y':"Y%s", 'z':"Z%s",
+            'f':FStandin, 'FStandin': 'F%d', 'i':'I%s','j':'J%s'}
     _target_order = ['x', 'y', 'z', 'i', 'j', 'f']
 
     def __init__(self, **data):
@@ -222,8 +241,8 @@ class G3(GCodeMaker):
     """anticlockwise arc"""
     _cmd = "G3"
     _order = ['f', 'x', 'y', 'z', 'i', 'j']
-    _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f",
-            'f':FStandin, 'i':"I%0.03f",'j':'J%0.03f'}
+    _tmpls = {'x':"X%s", 'y':"Y%s", 'z':"Z%s",
+            'f':FStandin, 'FStandin':'F%d', 'i':"I%s",'j':'J%s'}
     _target_order = ['x', 'y', 'z', 'i', 'j', 'f']
 
     def __init__(self, **data):
@@ -241,7 +260,7 @@ class G43dot1(GCodeMaker):
     """ Dynamic Tool Length Offset"""
     _cmd = "G43.1"
     _order = ['z']
-    _tmpls = {'z':"Z%0.03f"}
+    _tmpls = {'z':"Z%s"}
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)
@@ -273,7 +292,7 @@ class G90(GCodeMaker):
 class G92(GCodeMaker):
     _cmd = "G92"
     _order = ['x', 'y', 'z']
-    _tmpls = {'x':"X%0.03f", 'y':"Y%0.03f", 'z':"Z%0.03f"}
+    _tmpls = {'x':"X%s", 'y':"Y%s", 'z':"Z%s"}
 
     def __init__(self, **data):
         GCodeMaker.__init__(self, **data)

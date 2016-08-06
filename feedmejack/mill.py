@@ -114,6 +114,8 @@ class Mill(object):
 
         if tool:
             self.tool = tool
+        elif settings.tool:
+            self.tool = settings.tool
         else:
             self.tool = list(tools.find_tool(max_width=0.76, min_length=9.4))[0]
         self.tool.set_dynamic_offset(self.settings.tool_offset)

@@ -3,16 +3,11 @@
 import pdb
 import math
 from decimal import Decimal as _Decimal
+from .utility import *
 import decimal
 
-def _clean(val):
-        val = _Decimal(val)
-        val = val.normalize()
-        val = val.quantize(_Decimal("1.00000"))
-        return val
-
 def _inside(val, l, r):
-    val = _clean(val)
+    val = Decimal(val)
     if l < r:
         minimum = l
         maximum = r
@@ -25,9 +20,9 @@ def _inside(val, l, r):
 
 class XY(object):
     def __init__(self, x, y, r=0):
-        self.x = _clean(x)
-        self.y = _clean(y)
-        self.r = _clean(r)
+        self.x = Decimal(x)
+        self.y = Decimal(y)
+        self.r = Decimal(r)
 
     def __add__(self, other):
         return XY(self.x + other.x, self.y + other.y)
@@ -85,7 +80,7 @@ class XY(object):
         x *= x
         y = other.y - self.y
         y *= y
-        return _clean(math.sqrt(x+y))
+        return Decimal(math.sqrt(x+y))
 
     def slope(self, other):
         ret = (other.y - self.y) / (other.x - self.x)
@@ -132,10 +127,10 @@ class XY(object):
 
 class XYZ(XY):
     def __init__(self, x, y, z, r=0):
-        self.x = _clean(x)
-        self.y = _clean(y)
-        self.z = _clean(z)
-        self.r = _clean(r)
+        self.x = Decimal(x)
+        self.y = Decimal(y)
+        self.z = Decimal(z)
+        self.r = Decimal(r)
         self.xy = XY(self.x, self.y)
 
     def __add__(self, other):
@@ -223,7 +218,7 @@ class XYZ(XY):
             z2 = self.z
         z = z2 - self.z
         z *= z
-        return _clean(math.sqrt(x+y+z))
+        return Decimal(math.sqrt(x+y+z))
 
     def __hash__(self):
         return hash((self.x, self.y, self.z, self.r))
@@ -524,16 +519,16 @@ class Line(object):
         # y - mx = b
         # b = y - mx
         b = self.xy_max.y - (self.xym * self.xy_max.x)
-        return _clean(b)
+        return Decimal(b)
 
     def xyYAtX(self, x):
-        return (self.xym * _clean(x)) + self.xyb
+        return (self.xym * Decimal(x)) + self.xyb
 
     def xyXAtY(self, y):
         # y = mx + b
         # y -b = mx
         # (y-b)/m = x
-        return (_clean(y) - self.xyb) / self.xym
+        return (Decimal(y) - self.xyb) / self.xym
 
     def atX(self, x):
         indent = "      AtX:"
@@ -702,7 +697,7 @@ class Line(object):
     def distance(self, point):
         d = self.xy_min.distance(point) + self.xy_max.distance(point)
         d = _Decimal(d) / 2
-        return _clean(d)
+        return Decimal(d)
 
     @property
     def xybisector(self):

@@ -182,12 +182,12 @@ class Mill(object):
                 self.show_status(cmd="reset")
                 self.show_status(cmd="$X")
                 self.comms.write("\x18$X\n")
-                self.send(gcode.G55())
+                self.send(self.gcode.G55())
                 response = self.comms.readline()
-                self.send(gcode.G43dot1(z=self.tool.z))
+                self.send(self.gcode.G43dot1(z=self.tool.z))
                 response = self.comms.readline()
                 self.get_status()
-                self.send(gcode.G1(z=self.wpos.z - 10, f=10))
+                self.send(self.gcode.G1(z=self.wpos.z - 10, f=10))
                 return self._handle_response(response="")
             _sys.exit(2)
             #self.dumpqueue()
@@ -457,10 +457,10 @@ class Mill(object):
         if self.settings.home:
             self.home()
         else:
-            self.send(gcode.G55())
+            self.send(self.gcode.G55())
             response = self.comms.readline()
             self._handle_response(response)
-            self.send(gcode.G43dot1(z=self.tool.z))
+            self.send(self.gcode.G43dot1(z=self.tool.z))
             response = self.comms.readline()
             self._handle_response(response)
 
@@ -481,20 +481,20 @@ class Mill(object):
         self.comms.clear()
         self.send("$X")
         response = self.comms.readline()
-        self.send(gcode.G54())
+        self.send(self.gcode.G54())
         response = self.comms.readline()
         self._handle_response(response)
-        self.send(gcode.G43dot1(z=0))
+        self.send(self.gcode.G43dot1(z=0))
         response = self.comms.readline()
         self._handle_response(response)
         self.send("$H")
         self.status = "Waiting for Homing"
         self.show_status(status=self.status, wpos=self.wpos, mpos=self.mpos)
         self.wait_for_idle("Home", timeout=90)
-        self.send(gcode.G55())
+        self.send(self.gcode.G55())
         response = self.comms.readline()
         self._handle_response(response)
-        self.send(gcode.G43dot1(z=self.tool.z))
+        self.send(self.gcode.G43dot1(z=self.tool.z))
         response = self.comms.readline()
         self._handle_response(response)
 
@@ -505,21 +505,21 @@ class Mill(object):
         self.show_status(cmd="reset")
         self.show_status(cmd="$X")
         self.comms.write("\x18$X\n")
-        self.send(gcode.G54())
+        self.send(self.gcode.G54())
         response = self.comms.readline()
         self.show_status(cmd="reset")
         self.comms.write("\x18")
         self.show_status(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self._handle_post_reset()
         if self.wpos.z < 10 and self.mpos.z > 90:
-            self.send(gcode.G1(z=-10,f=10))
+            self.send(self.gcode.G1(z=-10,f=10))
 
     def park(self):
         self.show_status(status="Parking", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
         cmds = [
-            gcode.G1(end={'z':50}, f=20),
-            gcode.G0(end={'x':20, 'y':290}),
+            self.gcode.G1(end={'z':50}, f=20),
+            self.gcode.G0(end={'x':20, 'y':290}),
             ]
         for cmd in cmds:
             self.send(cmd)

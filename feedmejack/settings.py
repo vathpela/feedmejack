@@ -171,7 +171,7 @@ def parse_position_settings(label=None, optional=False, settings=None,
     return settings
 
 def default_comms_settings(reporter_tty='/dev/serial/by-name/wyse',
-                           reporter_tty_speed = 115200,
+                           reporter_tty_speed = 38400,
                            mill_tty='/dev/serial/by-name/cnc-mill',
                            mill_tty_speed = 115200):
     return {'reporter_tty': reporter_tty,

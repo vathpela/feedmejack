@@ -3,7 +3,19 @@
 import os
 import sys
 import time
+import pint
+
 from decimal import Decimal as _Decimal
+
+global unitreg
+unitreg = pint.UnitRegistry()
+
+def quantity(val, units="mm"):
+    q = unitreg.Quantity(val)
+    if q.dimensionless:
+        q2 = unitreg.Quantity("1 %s" % (units,))
+        q._units = q2._units
+    return q
 
 def clean(val):
     val = _Decimal(val)

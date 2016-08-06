@@ -17,18 +17,19 @@ def quantity(val, units="mm"):
         q._units = q2._units
     return q
 
-def clean(val):
+def clean(val, quant=None):
     val = _Decimal(val)
     val = val.normalize()
-    val = val.quantize(_Decimal("1.00000"))
+    if quant:
+        val = val.quantize(_Decimal(quant))
     return val
 
-Decimal = lambda x: clean(x)
+Decimal = lambda val,quant=None: clean(val,quant)
 
-def frange(x, y, jump):
-    x = clean(x)
-    y = clean(y)
-    jump = clean(jump)
+def frange(x, y, jump, quant=None):
+    x = clean(x, quant=quant)
+    y = clean(y, quant=quant)
+    jump = clean(jump, quant=quant)
     if jump > 0:
         compare = lambda x,y: x <= y
     else:
@@ -36,10 +37,21 @@ def frange(x, y, jump):
     x = x - jump
     while compare(x + jump, y):
         x = x + jump
-        yield x
+        yield clean(x, quant=quant)
     tmpx = x + jump
     if not compare(tmpx, y):
-        yield y
+        yield clean(y, quant=quant)
+
+def sweep(x, y, r, quant=None):
+    p = None
+    for n in frange(x, y, r, quant=quant):
+        if p is None:
+            p = n
+            continue
+        yield [p, n]
+        p = n
+    if not p is None and p != y:
+        yield [y, y]
 
 class StatusItem():
     def __init__(self, **d):

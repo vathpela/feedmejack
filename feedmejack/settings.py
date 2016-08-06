@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
-import sys
 import math
+import sys
 
-from decimal import Decimal
+import decimal
 
-from .utility import clean
+from .utility import *
 from . import utility
 from .tools import get_tool
 from .exceptions import *
@@ -17,21 +17,29 @@ class Settings():
 
     @property
     def feed(self):
-        candidates = [self.mill.f, self._max_feed_rate]
+        candidates = []
+        if hasattr(self, 'mill'):
+            candidates.append(self.mill.f)
+        candidates.append(self._max_feed_rate)
         if 'tool' in self.__dict__:
             candidates.append(self.tool.max_feed_rate)
         if 'feed' in self.__dict__:
             candidates.append(self.__dict__['feed'])
         candidates = filter(lambda x: x not in [None, 0, math.inf], candidates)
-        if not candidates:
+        candidates = list(candidates)
+        if not candidates or len(candidates) == 0:
             raise InvalidFeedRate
 
-        return min(candidates)
+        return clean(min(candidates),"10000")
 
-def default_tool_settings(width=50.0, length=2.0, cls=None, offset=0.0,
+def default_tool_settings(min_width=None, max_width=math.inf,
+                          min_length=None, max_length=math.inf,
+                          cls=None, offset=0,
                           feed=None):
-    return {'tool_width': width,
-            'tool_len': length,
+    return {'tool_width_min': min_width,
+            'tool_width_max': max_width,
+            'tool_length_min': min_length,
+            'tool_length_max': max_length,
             'tool_class': cls,
             'tool_offset': offset,
             'feed': feed,
@@ -50,21 +58,28 @@ def parse_tool_settings(settings=None, argv=sys.argv):
         if i >= end:
             break
         x = argv[i]
-        if x in ["--tool"]:
-            args['tool_width'] = clean(argv[i+1])
-            args['tool_len'] = clean(argv[i+2])
-            removes += [i, i+1, i+2]
-            n += 2
+        if x in ["--tool-width-min"]:
+            args['tool_width_min'] = clean(argv[i+1], "10000.000")
+            removes += [i, i+1]
+        if x in ["--tool-width-max"]:
+            args['tool_width_max'] = clean(argv[i+1], "10000.000")
+            removes += [i, i+1]
+        if x in ["--tool-length-min"]:
+            args['tool_length_min'] = clean(argv[i+1], "10000.000")
+            removes += [i, i+1]
+        if x in ["--tool-length-max"]:
+            args['tool_length_max'] = clean(argv[i+1], "10000.000")
+            removes += [i, i+1]
         elif x in ["--tool-class", "--toolclass", "--class"]:
             args['tool_class'] = argv[i+1]
             removes += [i, i+1]
             n += 1
         elif x in ["--tool-offset", "--tooloffset"]:
-            args['tool_offset'] = clean(argv[i+1])
+            args['tool_offset'] = clean(argv[i+1], "10000.000")
             removes += [i, i+1]
             n += 1
         elif x in ["--feed", "-f", "--feedrate", "--feed-rate"]:
-            args['feed'] = clean(argv[i+1])
+            args['feed'] = clean(argv[i+1], "100000")
             removes += [i, i+1]
             n += 1
 
@@ -113,28 +128,40 @@ def parse_position_settings(label=None, optional=False, settings=None,
             x = argv[i]
             if x in ["--%s" % (label,)]:
                 try:
-                    args['%s_x' % (label,)] = clean(argv[i+1])
-                    args['%s_y' % (label,)] = clean(argv[i+2])
-                    args['%s_z' % (label,)] = clean(argv[i+3])
+                    args['%s_x' % (label,)] = clean(argv[i+1], "10000.000")
+                    args['%s_y' % (label,)] = clean(argv[i+2], "10000.000")
+                    args['%s_z' % (label,)] = clean(argv[i+3], "10000.000")
                     removes += [i, i+1, i+2, i+3]
                     n += 3
                     settings.__dict__['%s_position_present' % (label,)] = True
                 except IndexError:
                     if not optional:
                         raise
+                except decimal.ConversionSyntax:
+                    print("Invalid options: %s %s %s %s" % argv[i:i+3])
+                    sys.exit(1)
     else:
         try:
             settings.__dict__['position_present'] = True
-            args.update({'x': clean(argv[1]),
-                         'y': clean(argv[2]),
-                         'z': clean(argv[3]),
-                    })
+            tmp = {
+                'x':clean(argv[1], "10000.000"),
+                'y':clean(argv[2], "10000.000"),
+                'z':clean(argv[3], "10000.000"),
+                }
+            args.update(tmp)
             removes += [1, 2, 3]
         except IndexError:
             if optional:
                 settings.__dict__['position_present'] = False
             else:
                 raise
+        except decimal.InvalidOperation as x:
+            try:
+                if isinstance(x.args[0][0], decimal.ConversionSyntax):
+                    pass
+            except:
+                pass
+            raise
 
     removes.reverse()
     for remove in removes:

@@ -19,17 +19,20 @@ if __name__ == '__main__':
 
     settings = fmj.settings.Settings(d=defaults)
     settings = fmj.settings.parse_tool_settings(settings=settings)
+    settings = fmj.settings.parse_position_settings(label='start',
+                                                  settings=settings)
+    settings = fmj.settings.parse_position_settings(label='end',
+                                                  settings=settings)
     settings = fmj.settings.parse_comms_settings(settings=settings)
 
     others = {"home": True,
               "park": False,
               "debug": False,
               "dryrun": False,
+              "step": clean(0.1, "10000.000"),
               "raise_z": True,
               }
     settings = fmj.settings.parse_settings(defaults=others, settings=settings)
-    settings = fmj.settings.parse_position_settings(optional=True,
-                                                  settings=settings)
     settings = fmj.settings.finalize(settings=settings)
 
     if len(sys.argv) > 1:
@@ -53,50 +56,53 @@ if __name__ == '__main__':
     f = settings.feed
 
     if settings.debug:
-        z_offset = Decimal(10)
+        z_offset = Decimal(10, "1.0")
         f *= 5
     else:
-        z_offset = Decimal(0)
+        z_offset = Decimal(0, "1.0")
 
-    z_max = Decimal(22.6) + z_offset
-    z_min = Decimal(19.35) + z_offset
+    start_x = clean(settings.start_x, '1000.00')
+    start_y = clean(settings.start_y, '1000.00')
+    start_z = clean(settings.start_z, '1000.00') + z_offset
+    end_x = clean(settings.end_x, '1000.00')
+    end_y = clean(settings.end_y, '1000.00')
+    end_z = clean(settings.end_z, '1000.00') + z_offset
 
-    def sweep(x, y, r):
-        p = None
-        for n in frange(x, y, r):
-            if p is None:
-                p = n
-                continue
-            yield [p, n]
-            p = n
-        if not p is None:
-            yield [y, y]
+    bend_r = clean("5", "1")
+    notch_y = clean(end_y + bend_r, '1000.00')
+    notch_x = clean(start_x + 1, '1000.00')
+    bend_top_x = clean(start_x + 2, '1000.00')
+    bend_top_y = notch_y
+    bend_bottom_x = clean(bend_top_x + bend_r, '1000.00')
+    bend_bottom_y = end_y
 
     cmds += [
         mill.gcode.F(f=f),
-        mill.gcode.G0(end={'x':89.6, 'y':142}),
-        mill.gcode.G0(end={'z':z_max * clean(1.1)}),
-        mill.gcode.G1(end={'z':z_max}),
+        mill.gcode.G0(end={'x':start_x, 'y':start_y}),
+        mill.gcode.G0(end={'z':start_z * clean(1.1, "1000.00")}),
+        mill.gcode.G1(end={'z':start_z}),
         ]
-    for z1, z0 in sweep(z_max, z_min, Decimal(-0.2)):
+    for z1, z0 in sweep(start_z, end_z, Decimal(-0.2, "1.0"), quant="1000.00"):
         cmds += [
-            mill.gcode.G1(end={'x':89.6, 'y':142, 'z':z1}),
+            mill.gcode.G1(end={'x':start_x, 'y':start_y, 'z':z1}),
 
-            mill.gcode.G1(end={'x':89.6, 'y':115, 'z':z0}),
-            mill.gcode.G0(end={'x':89.6, 'y':115, 'z':z1}),
+            mill.gcode.G1(end={'x':notch_x, 'y':notch_y, 'z':z0}),
+            mill.gcode.G0(end={'z':z1}),
 
-            mill.gcode.G1(end={'x':90.6, 'y':115, 'z':z0}),
-            mill.gcode.G0(end={'x':90.6, 'y':115, 'z':z1}),
+            mill.gcode.G1(end={'x':bend_top_x, 'y':bend_top_y, 'z':z0}),
+            mill.gcode.G0(end={'z':z1}),
 
-            mill.gcode.G3(x=93.6, y=112, z=z0, i=3, j=0, f=f),
-            mill.gcode.G0(end={'x':93.6, 'y':112, 'z':z1}),
+            mill.gcode.G3(x=bend_bottom_x, y=bend_bottom_y, z=z0,
+                          i=bend_r, j=0, f=f),
+            mill.gcode.G0(end={'z':z1}),
 
-            mill.gcode.G1(end={'x':146, 'y':112, 'z':z0}),
+            mill.gcode.G1(end={'x':end_x, 'y':end_y, 'z':z0}),
 
-            mill.gcode.G1(end={'x':93.6, 'y':112, 'z':z0}),
-            mill.gcode.G2(x=90.6, y=115, z=z0, i=0, j=3, f=f),
-            mill.gcode.G1(end={'x':89.6, 'y':115, 'z':z0}),
-            mill.gcode.G1(end={'x':89.6, 'y':142, 'z':z0}),
+            mill.gcode.G1(end={'x':bend_bottom_x, 'y':bend_bottom_y, 'z':z0}),
+            mill.gcode.G2(x=bend_top_x, y=bend_top_y, z=z0,
+                          i=0, j=bend_r, f=f),
+            mill.gcode.G1(end={'x':notch_x, 'y':notch_y, 'z':z0}),
+            mill.gcode.G1(end={'x':start_x, 'y':start_y, 'z':z0}),
         ]
 
     for cmd in cmds:

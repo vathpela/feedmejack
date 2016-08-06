@@ -1,7 +1,8 @@
 #!/usr/bin/python3
 
-import sys
+import math
 import pdb
+import sys
 import feedmejack as fmj
 from feedmejack.utility import *
 from decimal import Decimal
@@ -44,18 +45,17 @@ if __name__ == '__main__':
         mill.setup()
 
     cmds = []
-    if settings.raise_z:
-        cmd = mill.gcode.G0(end={'z':50})
-        cmds.append(cmd)
-        cmd = mill.gcode.F(f=50)
-        cmds.append(cmd)
-
-    if settings.feed <= 0:
+    if not settings.feed in [None,math.inf]:
         code = mill.gcode.G0
         args = {}
     else:
+        cmds.append(mill.gcode.F(f=settings.feed))
         code = mill.gcode.G1
         args = {'f':settings.feed}
+
+    if settings.raise_z:
+        cmd = mill.gcode.G0(end={'z':50})
+        cmds.append(cmd)
 
     if settings.position_present:
         if settings.raise_z:

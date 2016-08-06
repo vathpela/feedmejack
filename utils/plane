@@ -6,8 +6,7 @@ import tty
 import pdb
 import time
 import feedmejack as fmj
-from fmj.utility import *
-from decimal import Decimal
+from feedmejack.utility import *
 
 if __name__ == '__main__':
     defaults = {}
@@ -30,6 +29,7 @@ if __name__ == '__main__':
               "park": True,
               "debug": False,
               "dryrun": False,
+              "raise_z": True,
               "step": clean(0.1),
               }
     settings = fmj.settings.parse_settings(defaults=others, settings=settings)
@@ -42,84 +42,70 @@ if __name__ == '__main__':
     tool = settings.tool
     print("tool: %s tool.z: %s" % (tool,tool.z))
 
+    mill = fmj.Mill(settings=settings)
     if not settings.dryrun:
-        mill = fmj.Mill(settings=settings)
-
         mill.reset()
         mill.setup()
 
-    if debug:
-        z_start = 50
-        z_end = 50
-        f *= 20
+    f = Decimal(settings.feed,"100000")
+    z_start = settings.start_z
+    z_end = settings.end_z
+    z_step = clean(settings.step, "1.000")
+    if settings.debug:
+        z_start = clean("50.000")
+        z_end = clean("50.000")
+        f *= clean(20, "100000")
 
-    r = clean(Decimal(tool.width) / Decimal(2))
-    w = clean(tool.width)
-    x_start = clean(x_start - r * Decimal(1.05))
-    x_end = clean(x_end + r * Decimal(1.05))
-    y_start = clean(y_start - r * Decimal(1.05))
-    y_end = clean(y_end + r * Decimal(1.05))
+    r = tool.radius
+    w = tool.diameter
+    #x_start = clean(settings.start_x - r * Decimal(1.05))
+    #x_end = clean(settings.end_x + r * Decimal(1.05))
+    #y_start = clean(settings.start_y - r * Decimal(1.05))
+    #y_end = clean(settings.end_y + r * Decimal(1.05))
+    x_start = settings.start_x
+    x_end = settings.end_x
+    y_start = settings.start_y
+    y_end = settings.end_y
 
-    coords = [
-        [{'z':50}, mill.gcode.G0, None],
-        [{'x':x_start, 'y': y_start, 'z':50}, mill.gcode.G0, None],
-        [{'x':x_start, 'y': y_start, 'z':z_start+z_step},
-            mill.gcode.G0, None],
-        ]
-
-    for z in frange(z_start, z_end, -z_step):
-        for y in frange(y_start, y_end, r):
-            coords += [
-                [{'x':x_start, 'y':y, 'z':z+z_step}, mill.gcode.G1, f],
-                [{'x':x_end, 'y':y, 'z':z}, mill.gcode.G1, f],
-                [{'x':x_start, 'y':y, 'z':z}, mill.gcode.G1, f],
-                ]
-
+    coords = []
+    if settings.raise_z:
         coords += [
-            [{'z':z+z_step}, mill.gcode.G0, None],
-            [{'x':x_start, 'y':y_start, 'z':z+z_step}, mill.gcode.G1, f],
-            [{'x':x_start, 'y':y_end, 'z':z}, mill.gcode.G1, f],
-            [{'x':x_end, 'y':y_end, 'z':z+z_step}, mill.gcode.G1, f],
-            [{'x':x_end, 'y':y_start, 'z':z}, mill.gcode.G1, f],
-            [{'x':x_start, 'y':y_start, 'z':z}, mill.gcode.G1, f],
-            [{'x':x_start, 'y':y_end, 'z':z+z_step}, mill.gcode.G1, f],
-            [{'x':x_end, 'y':y_end, 'z':z}, mill.gcode.G1, f],
-            [{'x':x_end, 'y':y_start, 'z':z+z_step}, mill.gcode.G1, f],
-            [{'x':x_start, 'y':y_start, 'z':z}, mill.gcode.G1, f],
+            [{'z':50}, mill.gcode.G0, None],
+            [{'x':x_start, 'y': y_start, 'z':50}, mill.gcode.G0, None],
             ]
 
-    xz_variance = [0, -0.75]
-    yz_variance = [0, -1.5]
-    def adjust_z(x, y, z, debug=False):
-        z = clean(z)
-        if debug:
-            print("x,y,z: (%s,%s,%s)" % (x,y,z))
-        xzv = clean(Decimal(xz_variance[1]) - Decimal(xz_variance[0]))
-        if debug:
-            print("xzv: %s" % (xzv,))
-        xzv *= Decimal(x)/Decimal(300)
-        xzv = clean(xzv)
-        if debug:
-            print("xzv: %s" % (xzv,))
+    coords += [
+        [{'z':z_start + z_step}, mill.gcode.G0, None],
+        [{'x':x_start, 'y': y_start, 'z':z_start+z_step}, mill.gcode.G0, None],
+        ]
 
-        yzv = clean(Decimal(yz_variance[1]) - Decimal(yz_variance[0]))
-        if debug:
-            print("yzv: %s" % (yzv,))
-        yzv *= Decimal(y)/Decimal(300)
-        yzv = clean(yzv)
-        if debug:
-            print("yzv: %s" % (yzv,))
+    for z1, z0 in sweep(z_start, z_end, -abs(z_step), "100.00"):
+        for y in frange(y_start, y_end,
+                        clean(w * clean("0.95","1.00")), "100.00"):
+            coords += [
+                [{'x':x_start, 'y':y, 'z':z1}, mill.gcode.G1, f],
+                [{'x':x_end, 'y':y, 'z':z0}, mill.gcode.G1, f],
+                [{'x':x_start, 'y':y, 'z':z0}, mill.gcode.G1, f],
+                ]
 
-        ret = clean(Decimal(z) + Decimal(sum([xzv, yzv])) / Decimal(2))
-        if debug:
-            print("ret z: %s" % (ret,))
-        return ret
+#        coords += [
+#            [{'z':z1}, mill.gcode.G0, None],
+#            [{'x':x_start, 'y':y_start, 'z':z1}, mill.gcode.G1, f],
+#            [{'x':x_start, 'y':y_end, 'z':z0}, mill.gcode.G1, f/2],
+#            [{'x':x_end, 'y':y_end, 'z':z1}, mill.gcode.G1, f],
+#            [{'x':x_end, 'y':y_start, 'z':z0}, mill.gcode.G1, f/2],
+#            [{'x':x_start, 'y':y_start, 'z':z0}, mill.gcode.G1, f],
+#            [{'x':x_start, 'y':y_end, 'z':z1}, mill.gcode.G1, f/2],
+#            [{'x':x_end, 'y':y_end, 'z':z0}, mill.gcode.G1, f],
+#            [{'x':x_end, 'y':y_start, 'z':z1}, mill.gcode.G1, f/2],
+#            [{'x':x_start, 'y':y_start, 'z':z0}, mill.gcode.G1, f],
+#            ]
 
     cmds = []
+    cmds.append(mill.gcode.F(f=f))
 
     for (a,cmd,f) in coords:
         if 'x' in a and 'y' in a and 'z' in a:
-            #a['z'] = adjust_z(**a)
             pass
         kwargs = {'end': a}
         if f:

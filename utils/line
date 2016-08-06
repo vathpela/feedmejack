@@ -6,7 +6,6 @@ import sys
 import pdb
 import feedmejack as fmj
 from feedmejack.utility import *
-from decimal import Decimal
 
 if __name__ == '__main__':
     defaults = {}
@@ -41,26 +40,32 @@ if __name__ == '__main__':
     tool = settings.tool
     print("tool: %s tool.z: %s" % (tool,tool.z))
 
+    mill = fmj.Mill(settings=settings)
     if not settings.dryrun:
-        mill = fmj.Mill(settings=settings)
-
         mill.reset()
         mill.setup()
 
+    cmds = []
     if settings.feed > 0:
         code = mill.gcode.G1
         args = {'f':settings.feed}
+        cmds.append(mill.gcode.F(f=settings.feed))
     else:
         code = mill.gcode.G0
         args = {}
 
-    cmds = [
+    cmds += [
         mill.gcode.G0(end={'z':50}),
         mill.gcode.G0(end={'x':settings.start_x,'y':settings.start_y}),
-        mill.gcode.G0(end={'z':settings.start_z * Decimal(1.1)}),
-        code(end={'z':settings.start_z}, **args),
-        code(end={'x':settings.end_x, 'y':settings.end_y, 'z':settings.end_z},
-             **args)
+        mill.gcode.G0(end={'z':settings.start_z * Decimal(1.1, "10000.000")}),
+        code(end={'z':settings.start_z})
+        ]
+    for z1, z0 in sweep(settings.start_z, settings.end_z, -abs(settings.step),
+                        quant="100.00"):
+        cmds += [
+            code(end={'z':z1}),
+            code(end={'x':settings.end_x, 'y':settings.end_y, 'z':z0}),
+            code(end={'x':settings.start_x, 'y':settings.start_y, 'z':z0}),
         ]
 
     for cmd in cmds:

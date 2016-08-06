@@ -6,426 +6,101 @@ import tty
 import pdb
 import time
 import feedmejack as fmj
-from decimal import Decimal
-
-def _clean(val):
-        val = Decimal(val)
-        val = val.normalize()
-        val = val.quantize(Decimal("1.00000"))
-        return val
-
-def frange(x, y, jump):
-    if jump > 0:
-        compare = lambda x,y: x < y
-    else:
-        compare = lambda x,y: x > y
-    while compare(x,y):
-        yield x
-        x = Decimal(x) + Decimal(jump)
-
-class Reporter(object):
-    def __init__(self, device=None, speed=115200):
-        if device:
-            self.fd = os.open(device, os.O_RDWR)
-        else:
-            self.fd = os.open(sys.stdout.fileno(), O_RDWR)
-        self.cur_x = 1
-        self.cur_y = 1
-        self.max_x = 79
-        self.max_y = 24
-        self.escape("~;")
-        self.clear()
-        self.gotoxy(1,1)
-        self.cursor_save_with_attrs()
-        self.set_attribute(hidden=True)
-        pass
-        (x,y) = self.getxy()
-        self.cursor_restore_with_attrs()
-        self.scroll_enable(tline=1, bline=18)
-
-    @property
-    def x(self):
-        return self.cur_x
-    @property
-    def y(self):
-        return self.cur_y
-
-    def getattr(self):
-        [iflag, oflag, cflag, lflag, ispeed, ospeed, cc]=tty.tcgetattr(self.fd)
-        return {'iflag':iflag,
-                'oflag':oflag,
-                'cflag':cflag,
-                'ispeed':ispeed,
-                'ospeed':ospeed,
-                'cc':cc}
-
-    def escape(self, s=""):
-        os.write(self.fd, bytes("\x1b%s" % (s,), "UTF-8"))
-
-    def clear(self):
-        self.erase_screen()
-
-    def gotoxy(self, x:int, y:int):
-        x = int(x)
-        y = int(y)
-        if x > self.max_x:
-            raise ValueError(x)
-        if y > self.max_y:
-            raise ValueError(y)
-
-        self.escape("[%d;%dH" % (y, x))
-        self.cur_x = x
-        self.cur_y = y
-
-    def write(self, s, limit=None):
-        if limit is None:
-            limit = self.max_x - self.x
-        l = min(len(s), limit)
-        ns = s[:l]
-        ns += " " * (limit - min(len(s), limit))
-        os.write(self.fd, bytes(ns, "UTF-8"))
-        self.cur_x += l
-
-    def gohome(self):
-        self.escape("[H")
-        self.x = 1
-        self.y = 1
-
-    def reset(self):
-        self.escape("c")
-
-    def up(self, n=1):
-        n = int(n)
-        self.escape("%dA" % (n,))
-
-    def down(self, n=1):
-        self.escape("%dB" % (n,))
-
-    def forward(self, n=1):
-        n = int(n)
-        self.escape("%dCA" % (n,))
-
-    def backward(self, n=1):
-        n = int(n)
-        self.escape("%dD" % (n,))
-
-    def cursor_save(self):
-        self.escape("[s")
-
-    def cursor_restore(self):
-        self.escape("[u")
-
-    def cursor_save_with_attrs(self):
-        self.escape("7")
-
-    def cursor_restore_with_attrs(self):
-        self.escape("8")
-
-    def query_cursor_position(self):
-        return self.x, self.y
-
-    def getxy(self):
-        return self.query_cursor_position()
-        self.escape("[6n")
-        esc = os.read(self.fd, 1)
-        if esc[0] != "\x1b"[0]:
-            raise ValueError(esc)
-        c=None
-        x=0
-        s=""
-        while x <= 11:
-            x+=1
-            c = os.read(self.fd, 1)
-            s += c
-            if c[0] == 'R':
-                if s[0] != '[':
-                    raise ValueError(s)
-                x,y = s[1:].split(';')
-                return fmj.xyz.XY(x=int(x), y=int(y))
-
-        raise ValueError(s)
-
-    def scroll_up(self):
-        self.escape("[M")
-
-    def scroll_down(self, n=1):
-        # self.write("\r\n")
-        n = int(n)
-        self.escape("D")
-
-    def scroll_enable(self, tline=None, bline=None):
-        if tline != None and bline != None:
-            tline = int(tline)
-            bline = int(bline)
-            self.escape("[%d;%dr" % (tline, bline))
-        else:
-            self.escape("[r")
-
-    def wrap_enable(self):
-        self.escape("[7h")
-
-    def wrap_disable(self):
-        self.escape("[7l")
-
-    def erase_to_eol(self):
-        self.escape("[K")
-
-    def erase_from_sol(self):
-        self.escape("[1K")
-
-    def erase_line(self):
-        self.escape("[2K")
-
-    def erase_down(self):
-        self.escape("[J")
-
-    def erase_up(self):
-        self.escape("[1J")
-
-    def erase_screen(self):
-        self.escape("[2J")
-
-    def set_attribute(self, **kwds):
-        attrs = {
-            'reset': 0,
-            'bright': 1,
-            'dim': 2,
-            'underscore': 3,
-            'blink': 4,
-            'reverse': 5,
-            'hidden': 6,
-            }
-
-        l = []
-        for kwd in attrs.keys():
-            if kwd in kwds:
-                l.append(str(attrs[kwd]))
-        if l:
-            s = ";".join(l)
-            self.escape("[%sm" % (s,))
-
-global rep
-rep = Reporter("/dev/serial/by-name/wyse")
-report = {}
-last_time = None
-
-def status_cb(**kwds):
-    if rep is None:
-        return
-    items = []
-    s="\r" + " " * 135 + "\r"
-    things = {
-        'status': {'x':-40, 'y':20, 'limit':39, 'heading':'status'},
-        'goal': {'x':-40, 'y':21, 'limit': 39, 'heading':'goal'},
-        'target': {'x':-40, 'y':22, 'limit':39, 'heading':'target'},
-        'mpos': {'x': -40, 'y':23, 'limit':39, 'heading':'mpos'},
-        'wpos': {'x': -40, 'y':24, 'limit':39, 'heading':'wpos'},
-        'cmd':{'x':1, 'y':18, 'limit':79, 'scroll':True},
-        }
-    for key in kwds.keys():
-        report[key] = kwds[key]
-
-    global last_time
-    if last_time == None:
-        for thing in things.keys():
-            attrs = things[thing]
-            x = attrs['x']
-            if x < 0:
-                x = rep.max_x + x
-            y = attrs['y']
-            if y < 0:
-                y = rep.max_y + y
-            rep.cursor_save_with_attrs()
-            if 'heading' in attrs:
-                h = attrs['heading']
-                hx = x - (len(h) + 1)
-                rep.gotoxy(hx, y)
-                rep.write("%s" % (h,))
-            rep.cursor_restore_with_attrs()
-        last_time = 0
-
-    now = time.time()
-    if now < last_time + 0.66:
-        return
-    last_time = now
-    rep.gotoxy(1,20)
-    rep.write("%s" % (time.asctime(time.gmtime(now)),), limit=30)
-    rep.gotoxy(1,21)
-    rep.write("%f" % (now,), limit=30)
-
-    for thing in things.keys():
-        if thing in report:
-            if thing in ['wpos','mpos']:
-                val = report[thing]
-                val = "X%3.3f Y%3.3f Z%3.3f" % (val.x, val.y, val.z)
-            else:
-                val = str(report[thing])
-                val = val.strip()
-        else:
-            continue
-
-        attrs = things[thing]
-        #pdb.set_trace()
-        x = attrs['x']
-        if x < 0:
-            x = rep.max_x + x
-        y = attrs['y']
-        if y < 0:
-            y = rep.max_y + y
-        rep.cursor_save_with_attrs()
-        if 'limit' in attrs:
-            limit = attrs['limit']
-        else:
-            limit = rep.max_x - x
-        rep.gotoxy(x,y)
-        rep.write("%s" % (val,), limit=attrs['limit'])
-        if 'scroll' in attrs and attrs['scroll'] and 'cmd' in kwds:
-            rep.scroll_down()
-        rep.cursor_restore_with_attrs()
-
-    #    x = x.strip()
-    #    y = str(y).strip()
-    #    if not y:
-    #        continue
-    #    i = "=".join([x, y])
-    #    items.append(i)
-    #s += "\t".join(items)
-    ##pdb.set_trace()
-    #if len(s) > 0:
-    #    sys.stdout.write(s)
-
-    #for x,y in kwds.items():
-    #    x = x.strip()
-    #    y = str(y).strip()
-    #    i = "=".join([x,y])
-    #s = " ".join(items)
-    #if len(s) > 0:
-    #    sys.stdout.write("\n%s\n" % (s,))
+from feedmejack.utility import *
+from feedmejack.xyz import Point
 
 if __name__ == '__main__':
-    terminal='/dev/cnc-mill'
-    home = True
-    debug = False
-    park = True
-    removes=[]
-    for i in range(len(sys.argv)):
-        if i in removes:
-            continue
-        x = sys.argv[i]
-        if x in ["-N", "--no-home", "--nohome"]:
-            home = False
-            removes.append(i)
-        elif x in ["-d", "--debug"]:
-            debug = True
-            removes.append(i)
-        elif x in ["-p", "--park"]:
-            park = True
-            removes.append(i)
-        elif x in ["--no-park", "--nopark"]:
-            park = False
-            removes.append(i)
-        elif x in ["-t", "--terminal"]:
-            terminal = sys.argv[i+1]
-            removes += [i, i+1]
-        elif x.startswith("--terminal="):
-            terminal = x[11:]
-            removes.append(i)
+    defaults = {}
+    defaults.update(fmj.settings.default_tool_settings(feed=25))
+    defaults.update(fmj.settings.default_position_settings(label='start',
+                                                         x=10, y=10, z=50))
+    defaults.update(fmj.settings.default_position_settings(label='end',
+                                                         x=290, y=290, z=50))
+    defaults.update(fmj.settings.default_comms_settings())
 
-    removes.reverse()
-    for remove in removes:
-        del sys.argv[remove]
+    settings = fmj.settings.Settings(d=defaults)
+    settings = fmj.settings.parse_tool_settings(settings=settings)
+    settings = fmj.settings.parse_comms_settings(settings=settings)
 
-    #tool = list(fmj.tools.find_tool(max_width=1.01, min_length=9.5))[0]
-    tool = list(fmj.tools.find_tool(max_width=1.0, min_length=9.5))[0]
-    print("tool: %s" % (tool,))
-    print("tool.z: %s" % (tool.z,))
+    others = {"home": True,
+              "park": False,
+              "debug": False,
+              "dryrun": False,
+              "raise_z": True,
+              "stride": Decimal(10.0),
+              }
+    settings = fmj.settings.parse_settings(defaults=others, settings=settings)
+    settings = fmj.settings.parse_position_settings(optional=True,
+                                                  settings=settings)
+    settings = fmj.settings.finalize(settings=settings)
 
-    mill = fmj.Mill(terminal, status_cb, tool=tool)
-    print("Resetting mill")
-    mill.reset()
-    print("Mill setup")
-    mill.setup(home=home)
+    if len(sys.argv) > 1:
+        print("what's up with this command line: %s" % (sys.argv,))
+        sys.exit(1)
 
-    mill.get_status()
-    status_cb(status=mill.status, wpos=mill.wpos)
-    mill.get_status()
+    tool = settings.tool
+    print("tool: %s tool.z: %s" % (tool,tool.z))
 
-    z = Decimal(19.0)
-    f = 400
-
-    if debug:
-        z += 10
-        f *= 20
-
-    y_range = [140, 241]
-    x_range = [70, 201]
-
-    coords = [
-        [{'z':50}, mill.gcode.G0, None],
-        [{'x':x_range[0], 'y': y_range[0], 'z':z+2}, mill.gcode.G0, None],
-        ]
-
-    for x in range(x_range[0], x_range[1], 10):
-        coords += [
-            [{'x':x, 'y':y_range[0], 'z':z+1}, mill.gcode.G0, None],
-            [{'x':x, 'y':y_range[0], 'z':z}, mill.gcode.G0, None],
-            [{'x':x, 'y':y_range[1], 'z':z}, mill.gcode.G1, f],
-            [{'x':x, 'y':y_range[1], 'z':z+1}, mill.gcode.G0, None],
-            [{'x':x, 'y':y_range[0], 'z':z+1}, mill.gcode.G0, None],
-            ]
-
-    for y in range(y_range[0], y_range[1], 10):
-        coords += [
-            [{'y':y, 'x':x_range[0], 'z':z+1}, mill.gcode.G0, None],
-            [{'y':y, 'x':x_range[0], 'z':z}, mill.gcode.G0, None],
-            [{'y':y, 'x':x_range[1], 'z':z}, mill.gcode.G1, f],
-            [{'y':y, 'x':x_range[1], 'z':z+1}, mill.gcode.G0, None],
-            [{'y':y, 'x':x_range[0], 'z':z+1}, mill.gcode.G0, None],
-            ]
-
-    xz_variance = [0, -0.75]
-    yz_variance = [0, -1.5]
-    def adjust_z(x, y, z, debug=False):
-        z = _clean(z)
-        if debug:
-            print("x,y,z: (%s,%s,%s)" % (x,y,z))
-        xzv = _clean(Decimal(xz_variance[1]) - Decimal(xz_variance[0]))
-        if debug:
-            print("xzv: %s" % (xzv,))
-        xzv *= Decimal(x)/Decimal(300)
-        xzv = _clean(xzv)
-        if debug:
-            print("xzv: %s" % (xzv,))
-
-        yzv = _clean(Decimal(yz_variance[1]) - Decimal(yz_variance[0]))
-        if debug:
-            print("yzv: %s" % (yzv,))
-        yzv *= Decimal(y)/Decimal(300)
-        yzv = _clean(yzv)
-        if debug:
-            print("yzv: %s" % (yzv,))
-
-        ret = _clean(Decimal(z) + Decimal(sum([xzv, yzv])) / Decimal(2))
-        if debug:
-            print("ret z: %s" % (ret,))
-        return ret
+    mill = fmj.Mill(settings=settings)
+    if not settings.dryrun:
+        mill.reset()
+        mill.setup()
+        mill.wait_for_idle()
 
     cmds = []
 
-    for (a,cmd,f) in coords:
-        #if 'x' in a and 'y' in a and 'z' in a:
-        #    a['z'] = adjust_z(**a)
-        kwargs = {'end': a}
-        if f:
-            kwargs['f'] = f
-        c = cmd(**kwargs)
-        cmds.append(c)
+    if settings.raise_z:
+        cmds.append(mill.gcode.G0(end={'z':50}))
 
-    mill.wait_for_idle()
+    f = settings.feed
+
+    if settings.debug:
+        z_offset = Decimal(10)
+        f *= 5
+    else:
+        z_offset = Decimal(0)
+
+    z_max = settings.start_z + z_offset
+    z_min = settings.end_z + z_offset
+
+    x_min = settings.start_x
+    if x_min % settings.stride != 0:
+        x_min += settings.stride - (x_min % settings.stride)
+    x_max = settings.end_x
+    if x_max % settings.stride != 0:
+        x_max -= x_max % settings.stride
+
+    y_min = settings.start_x
+    if y_min % settings.stride != 0:
+        y_min += settings.stride - (y_min % settings.stride)
+    y_max = settings.end_x
+    if y_max % settings.stride != 0:
+        y_max -= y_max % settings.stride
+
+    cmds += [
+        mill.gcode.F(f=f),
+        mill.gcode.G0(end={'x':x_min, 'y':y_min}),
+        mill.gcode.G0(end={'z':z_max * Decimal(1.1)}),
+        mill.gcode.G1(end={'z':z_max}),
+        ]
+    points = []
+    for x0, x1 in sweep(x_min, x_max, settings.stride):
+        for y0, y1 in sweep(y_min, y_max, settings.stride):
+            points += [
+                Point(x0, y0, math.inf),
+                Point(x0, y0),
+                Point(x0, y1),
+                Point(x0, y1, z=math.inf),
+            ]
+
+    for point in points:
+        print("%s" % (point,))
+
     for cmd in cmds:
         print("%s" % (cmd,))
-        mill.send(cmd)
-        mill.wait_for_idle()
+        #if not settings.dryrun:
+        #    mill.send(cmd)
+        #    mill.wait_for_idle()
 
-    if park:
+    if settings.park and not settings.dryrun:
         mill.park()

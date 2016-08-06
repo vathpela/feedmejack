@@ -1,0 +1,158 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import tty
+import pdb
+import time
+import feedmejack as fmj
+from feedmejack.utility import *
+
+if __name__ == '__main__':
+    defaults = {}
+    defaults.update(fmj.settings.default_tool_settings(feed=25))
+    defaults.update(fmj.settings.default_position_settings(label='start',
+                                                         x=10, y=10, z=50))
+    #defaults.update(fmj.settings.default_position_settings(label='end',
+    #                                                     x=290, y=290, z=50))
+    defaults.update(fmj.settings.default_comms_settings())
+
+    settings = fmj.settings.Settings(d=defaults)
+    settings = fmj.settings.parse_tool_settings(settings=settings)
+    settings = fmj.settings.parse_comms_settings(settings=settings)
+
+    others = {"home": True,
+              "park": False,
+              "debug": False,
+              "dryrun": False,
+              "step": clean("0.1", "10000.000"),
+              "hole": True,
+              "raise_z": True,
+              "depth": clean("6.35", "10000.00"),
+              "width": clean("6.35", "10000.00"),
+              }
+    settings = fmj.settings.parse_settings(defaults=others, settings=settings)
+    settings = fmj.settings.parse_position_settings(optional=True,
+                                                  settings=settings)
+    settings = fmj.settings.finalize(settings=settings)
+
+    settings.step = clean(settings.step, "10000.000")
+    settings.depth = clean(settings.depth, "10000.000")
+    settings.width = clean(settings.width, "10000.000")
+
+    if len(sys.argv) > 1:
+        print("what's up with this command line: %s" % (sys.argv,))
+        sys.exit(1)
+
+    tool = settings.tool
+    print("tool: %s tool.z: %s" % (tool,tool.z))
+
+    mill = fmj.Mill(settings=settings)
+    if not settings.dryrun:
+        mill.reset()
+        mill.setup()
+        mill.wait_for_idle()
+
+    cmds = []
+
+    if settings.raise_z:
+        cmds.append(mill.gcode.G0(end={'z':50}))
+
+    f = settings.feed
+    f = clean(f, "1")
+
+    z_max = Decimal(settings.start_z, "10000.00")
+    z_min = z_max - start_depth)
+
+    x_min = settings.start_x
+    x_max = settings.start_x + width
+
+    y_min = settings.start_y
+    y_max = settings.start_x + Decimal("12.7", "10000.000")
+
+    top_y_min = Decimal(y_min, "10000.000") + tool.radius
+    top_y_max = Decimal(y_max, "10000.000") - tool.radius
+
+    quarter = top_y_max - top_y_min / Decimal("4.000")
+    bottom_y_min = top_y_min + quarter
+    bottom_y_max = top_y_max + 3 * quarter
+
+    y_max_range = top_y_max - top_y_min
+    y_min_range = bottom_y_max - bottom_y_min
+
+    if settings.debug:
+        z_min = z_max + Decimal("0.19")
+        z_max = z_max + Decimal("0.60")
+        f *= 5
+        f = clean(f, "10000")
+
+    cmds += [
+        mill.gcode.F(f=f),
+        mill.gcode.G0(end={'x':x_max, 'y':top_y_min}),
+        mill.gcode.G0(end={'z':z_max * clean("1.1")}),
+        mill.gcode.G1(end={'z':z_max}),
+        ]
+    cmds2 = []
+    for z1, z0 in sweep(z_max, z_min, Decimal(-0.2, "1.0"), quant="1.0"):
+        pct_z = (z1 - z_min) / (z_max - z_min)
+        #print("y_min_range: %s" % (y_min_range,))
+        #print("y_max_range: %s" % (y_max_range,))
+        y_travel = y_min_range + (pct_z * (y_max_range - y_min_range))
+
+        #print("z0: %s pct_z: %s y_travel: %s" % (z0, pct_z,y_travel))
+        y_offset = (y_max_range - y_travel) / clean(2, "1.00")
+        #print("y_offset: %s" % (y_offset,))
+
+        ys = [clean(top_y_min + y_offset, "1.00"),
+              clean(top_y_min + y_offset + y_travel, "1.00")
+              ]
+
+        cmds2 += [
+            mill.gcode.G1(end={'z':z1}, f=f),
+            mill.gcode.G1(end={'x':x_max, 'y':ys[0]}, f=f),
+            mill.gcode.G1(end={'x':x_min, 'y':ys[0], 'z':z0}, f=f),
+            mill.gcode.G1(end={'x':x_max, 'y':ys[0], 'z':z0}, f=f),
+            ]
+        for y1, y0 in sweep(ys[0], ys[1],
+                            tool.width * Decimal(0.75, "1.00"),
+                            quant="1.000"):
+            cmds2 += [
+                mill.gcode.G1(end={'x': x_min, 'y':y1, 'z':z0}, f=f),
+                mill.gcode.G1(end={'x': x_max, 'y':y0, 'z':z1}, f=f),
+                ]
+
+        cmds2 += [
+            mill.gcode.G1(end={'z':z1}, f=f),
+            mill.gcode.G1(end={'x':x_max, 'y':ys[1], 'z':z1}, f=f),
+            mill.gcode.G1(end={'x':x_min, 'y':ys[1], 'z':z0}, f=f),
+            mill.gcode.G1(end={'x':x_max, 'y':ys[1], 'z':z0}, f=f),
+            ]
+
+    cmds += [
+        mill.gcode.G0(end={'z':z_max}),
+        ]
+    for x in frange(x_max, x_min, -tool.radius, quant="1.00"):
+        cmds += [
+            mill.gcode.G1(end={'x':x, 'y':top_y_min}),
+            mill.gcode.G1(end={'y':bottom_y_min, 'z':z_min}),
+            mill.gcode.G1(end={'y':bottom_y_max}),
+            mill.gcode.G1(end={'y':top_y_max, 'z':z_max}),
+            mill.gcode.G1(end={'y':bottom_y_max, 'z':z_min}),
+            mill.gcode.G1(end={'y':bottom_y_min, 'z':z_min}),
+            mill.gcode.G1(end={'y':top_y_min, 'z':z_max}),
+        ]
+    cmds += [
+        mill.gcode.G1(end={'x':x_min, 'y':top_y_min}, f=f),
+        mill.gcode.G1(end={'y':bottom_y_min, 'z':z_min}, f=f),
+        mill.gcode.G1(end={'y':bottom_y_max, 'z':z_min}, f=f),
+        mill.gcode.G1(end={'y':top_y_max, 'z':z_max}, f=f),
+        ]
+
+    for cmd in cmds:
+        print("%s" % (cmd,))
+        if not settings.dryrun:
+            mill.send(cmd)
+            mill.wait_for_idle()
+
+    if settings.park and not settings.dryrun:
+        mill.park()

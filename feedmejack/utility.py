@@ -10,21 +10,59 @@ from decimal import Decimal as _Decimal
 global unitreg
 unitreg = pint.UnitRegistry()
 
-def quantity(val, units="mm"):
-    q = unitreg.Quantity(val)
-    if q.dimensionless:
-        q2 = unitreg.Quantity("1 %s" % (units,))
-        q._units = q2._units
-    return q
-
 def clean(val, quant=None):
-    val = _Decimal(val)
+    try:
+        val = _Decimal(val)
+    except:
+        print("val: %s" % (val,))
+        raise
     val = val.normalize()
     if quant:
         val = val.quantize(_Decimal(quant))
     return val
 
 Decimal = lambda val,quant=None: clean(val,quant)
+
+class Quantity():
+    def __init__(self, val, units="mm"):
+        q = unitreg.Quantity(val)
+        if q.dimensionless:
+            q2 = unitreg.Quantity("1 %s" % (units,))
+            q._units = q2._units
+        self.q = q
+
+    def __lt__(self, other):
+        if isinstance(other, Quantity):
+            return self.mm < other.mm
+        else:
+            o = Decimal(other)
+            s = Decimal(self.mm)
+            return s < o
+
+    def __eq__(self, other):
+        if isinstance(other, Quantity):
+            return self.mm == other.mm
+        else:
+            o = Decimal(other)
+            s = Decimal(self.mm)
+            return s == o
+
+    def __hash__(self):
+        return hash(self.q)
+
+    def __str__(self):
+        return str(self.q)
+
+    def __abs__(self):
+        mm = abs(self.mm)
+        x = self.__class__.__new__(Quantity)
+        x.__init__(val=mm, units="mm")
+        return x
+
+    @property
+    def mm(self):
+        m = self.q.to("mm").magnitude
+        return Decimal(m, "10000000000.0000")
 
 def frange(x, y, jump, quant=None):
     x = clean(x, quant=quant)
@@ -53,4 +91,4 @@ def sweep(x, y, r, quant=None):
     if not p is None and p != y:
         yield [y, y]
 
-__all__ = ["clean", "frange", "sweep", "Decimal", "quantity"]
+__all__ = ["clean", "frange", "sweep", "Decimal", "Quantity"]

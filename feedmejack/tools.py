@@ -13,36 +13,31 @@ class Tool(object):
             notes=None):
         self.location = location
         self.name = name
-        self.max_feed_rate = max_feed_rate
+        self.max_feed_rate = Decimal(max_feed_rate, "10000")
         if max_feed_rate != math.inf:
             self.max_feed_rate = clean(self.max_feed_rate)
         self.min_feed_rate = clean(min_feed_rate)
         self.notes = notes
 
-        self.depth_from_spindle = quantity(depth_from_spindle)
-        self.cutting_diameter = quantity(CED)
-        self.overall_length = quantity(overall_length)
-        self.flute_length = quantity(CEL)
+        self.depth_from_spindle = Quantity(depth_from_spindle)
+        self.cutting_diameter = Quantity(CED)
+        self.overall_length = Quantity(overall_length)
+        self.flute_length = Quantity(CEL)
         if shank_diameter is None:
-            self.shank_diameter = quantity(self.cutting_diameter)
+            self.shank_diameter = Quantity(self.cutting_diameter)
         else:
-            self.shank_diameter = quantity(shank_diameter)
+            self.shank_diameter = Quantity(shank_diameter)
 
         self._dynamic_z = 0
 
-    def attr_as_mm(self, name):
-        q = getattr(self, name)
-        m = q.to("mm").magnitude
-        return clean(m, "10000000000.0000")
-
     @property
     def CED(self):
-        return self.attr_as_mm("cutting_diameter")
+        return self.cutting_diameter.mm
 
     @property
     def width(self):
         try:
-            return self.attr_as_mm("cutting_diameter")
+            return self.cutting_diameter.mm
         except:
             import pdb
             pdb.set_trace()
@@ -50,27 +45,27 @@ class Tool(object):
 
     @property
     def diameter(self):
-        return self.attr_as_mm("cutting_diameter")
+        return self.cutting_diameter.mm
 
     @property
     def radius(self):
-        return self.attr_as_mm("cutting_diameter") / clean("2", "10000.000")
+        return self.cutting_diameter.mm / Decimal("2", "10000.000")
 
     @property
     def CEL(self):
-        return self.attr_as_mm("flute_length")
+        return self.flute_length.mm
 
     @property
     def length(self):
-        return self.attr_as_mm("flute_length")
+        return self.flute_length.mm
 
     @property
     def SHK(self):
-        return self.attr_as_mm("shank_diameter")
+        return self.shank_diameter.mm
 
     @property
     def OAL(self):
-        return self.attr_as_mm("overall_length")
+        return self.overall_length.mm
 
 
     def __str__(self):
@@ -86,7 +81,7 @@ class Tool(object):
 
     @property
     def raw_z(self):
-        return self.attr_as_mm("depth_from_spindle")
+        return self.depth_from_spindle.mm
 
     @property
     def z(self):
@@ -114,13 +109,14 @@ class Dovetail(Tool):
 class BottomCleaning(Tool):
     _strname = "BottomCleaning"
 
+class Drill(Tool):
+    _strname = "Drill"
+
 tools = [
         EndMill("free", "1/4in Onsrud upcut", CED="0.25 inch", CEL="0.625 inch",
             depth_from_spindle="42mm",
             shank_diameter="0.25 inch", overall_length="2.75 inch",
-            max_feed_rate=1000.0, notes="LMT Onsrud 40-105"),
-        EndMill("case C", "light pink 1mm", 1.0, 9.5, 20, max_feed_rate=100.0),
-        EndMill("case B", "black 0.75mm", 0.75, 9.5, 20),
+            max_feed_rate=5000.0, notes="LMT Onsrud 40-105"),
         EndMill("case A", "white 1.2mm", 1.2, 10, 19),
         EndMill("Inventables PCB Set", "orange 1.1mm", 1.1, 11, 20.5,
                 max_feed_rate=150.0, notes="inventables set 30326-01"),
@@ -132,6 +128,9 @@ tools = [
         EndMill("case A", "dark purple 0.6mm", 0.6, 7, 19.8),
         EndMill("case A", "dark yellow 0.55mm", 0.55, 6, 19.9),
         EndMill("case A", "light green 0.35mm", 0.35, 4.75, 19.8),
+        EndMill("case B", "black 0.75mm", 0.75, 9.5, 20),
+        EndMill("case B", "yellow 0.67mm", 0.67, 8, 20.6, max_feed_rate=500.0),
+        EndMill("case C", "light pink 1mm", 1.0, 9.5, 20, max_feed_rate=100.0),
         CuttingMill("free", "1/8in cutter", 3.175, 14, 22.5),
         CompressionMill("free", "3mm compression bit", 3.0, 14, 10.5,
                         notes="inventables part 30668-01"),
@@ -147,6 +146,11 @@ tools = [
                 CED="0.75 inch", CEL="0.5 inch", depth_from_spindle="25.5 mm",
                 max_feed_rate=2000.0,
                 notes="Roman Carbide DC1257"),
+        Drill("drill bit case", "dewalt 1/4 drill bit",
+                CED="0.25 inch", CEL="2.0 inch", depth_from_spindle="75mm",
+                shank_diameter="0.25 inch", overall_length="4.0 inch",
+                max_feed_rate=1000.0, min_feed_rate=300.0,
+                notes="this is a drill bit"),
         ]
 
 def find_tool(min_width=None, max_width=math.inf,
@@ -184,8 +188,8 @@ def find_tool(min_width=None, max_width=math.inf,
             print("skipping %s (max length %s < %s)" % (tool,
                                                     max_length, tool.length))
             continue
-        print("yielding %s (length=%s width=%s)" % (tool, tool.width,
-            tool.length))
+        print("yielding %s (length=%s width=%s)" % (tool, tool.length,
+            tool.width))
         yield tool
     raise StopIteration
 

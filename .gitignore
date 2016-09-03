@@ -1,4 +1,5 @@
 __pycache__
 *.strace
+*.log
 output/
 .*.sw?

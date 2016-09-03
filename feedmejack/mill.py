@@ -139,6 +139,11 @@ class Mill(object):
     def f(self):
         return self._f
 
+    def dry_run(self, start):
+        self.show_status(cmd="$C")
+        self.send("$C")
+        line = self.comms.readline()
+
     def send(self, cmd):
         self.show_status(cmd=cmd)
         s = str(cmd)

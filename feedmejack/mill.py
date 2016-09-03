@@ -528,7 +528,7 @@ class Mill(object):
         self.show_status(status="Parking", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
         cmds = [
-            self.gcode.G1(end={'z':50}, f=20),
+            self.gcode.G0(end={'z':50}),
             self.gcode.G0(end={'x':20, 'y':290}),
             ]
         for cmd in cmds:

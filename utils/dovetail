@@ -10,7 +10,7 @@ from feedmejack.utility import *
 
 if __name__ == '__main__':
     defaults = {}
-    defaults.update(fmj.settings.default_tool_settings(feed=25))
+    defaults.update(fmj.settings.default_tool_settings())
     defaults.update(fmj.settings.default_position_settings(label='start',
                                                          x=10, y=10, z=50))
     #defaults.update(fmj.settings.default_position_settings(label='end',
@@ -32,6 +32,8 @@ if __name__ == '__main__':
               "width": clean("6.35", "10000.00"),
               }
     settings = fmj.settings.parse_settings(defaults=others, settings=settings)
+    settings = fmj.settings.parse_position_settings(label='start',
+                                                  settings=settings)
     settings = fmj.settings.parse_position_settings(optional=True,
                                                   settings=settings)
     settings = fmj.settings.finalize(settings=settings)
@@ -62,23 +64,30 @@ if __name__ == '__main__':
     f = clean(f, "1")
 
     z_max = Decimal(settings.start_z, "10000.00")
-    z_min = z_max - start_depth)
+    z_min = z_max - settings.depth
 
     x_min = settings.start_x
-    x_max = settings.start_x + width
+    x_max = settings.start_x + settings.width
 
     y_min = settings.start_y
-    y_max = settings.start_x + Decimal("12.7", "10000.000")
+    y_max = settings.start_y + Decimal("12.7", "10000.000") - tool.width
 
     top_y_min = Decimal(y_min, "10000.000") + tool.radius
     top_y_max = Decimal(y_max, "10000.000") - tool.radius
 
-    quarter = top_y_max - top_y_min / Decimal("4.000")
+    quarter = (top_y_max - top_y_min) / Decimal("4.000")
+    #print("quarter: %s" % (quarter,))
     bottom_y_min = top_y_min + quarter
-    bottom_y_max = top_y_max + 3 * quarter
+    bottom_y_max = top_y_min + 3 * quarter
 
     y_max_range = top_y_max - top_y_min
     y_min_range = bottom_y_max - bottom_y_min
+
+    print("z: %f - %f" % (z_min, z_max))
+    print("x: %f - %f" % (x_min, x_max))
+    print("top_y: %f - %f" % (top_y_min, top_y_max))
+    print("bottom_y: %f - %f" % (bottom_y_min, bottom_y_max))
+    #sys.exit(0)
 
     if settings.debug:
         z_min = z_max + Decimal("0.19")
@@ -128,6 +137,8 @@ if __name__ == '__main__':
             mill.gcode.G1(end={'x':x_max, 'y':ys[1], 'z':z0}, f=f),
             ]
 
+    cmds += cmds2
+
     cmds += [
         mill.gcode.G0(end={'z':z_max}),
         ]
@@ -149,7 +160,7 @@ if __name__ == '__main__':
         ]
 
     for cmd in cmds:
-        print("%s" % (cmd,))
+        print("%s %s" % (time.time(), cmd))
         if not settings.dryrun:
             mill.send(cmd)
             mill.wait_for_idle()

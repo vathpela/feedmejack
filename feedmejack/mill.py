@@ -14,23 +14,21 @@ from .utility import *
 from . import xyz
 from .serial import *
 
-import pdb as _pdb
-import selectors as _selectors
-import time as _time
-import signal as _signal
-import sys as _sys
-
-from decimal import Decimal as _Decimal
+import pdb
+import selectors
+import time
+import sys
+import weakref
 
 class Comms(SerialPort):
     def __init__(self, settings):
         SerialPort.__init__(self, settings, "mill")
 
-        self.selector = _selectors.PollSelector()
+        self.selector = selectors.PollSelector()
 
         self.buf = u""
 
-        self.selector.register(self.device, _selectors.EVENT_READ)
+        self.selector.register(self.device, selectors.EVENT_READ)
 
     def clear(self):
         self.buf = u""
@@ -54,7 +52,7 @@ class Comms(SerialPort):
 
         while self._timeout < limit and not '\n' in self.buf:
             for event, mask in self.selector.select(interval):
-                if mask & _selectors.EVENT_READ:
+                if mask & selectors.EVENT_READ:
                     self._timeout = 0
                     x = event.fileobj.read(1).decode('utf8')
                     if x != '\r':
@@ -169,7 +167,7 @@ class Mill(object):
             print("Trying to write a newline 'cause that's meaningful...")
             self.comms.write("\n")
             return
-        _pdb.set_trace()
+        pdb.set_trace()
         raise RuntimeError
 
     def _handle_alarm(self, response):
@@ -189,15 +187,16 @@ class Mill(object):
                 self.send(self.gcode.G43dot1(z=self.tool.z))
                 response = self.comms.readline()
                 self.get_status()
-                self.send(self.gcode.G1(z=self.wpos.z - 10, f=10))
+                time.sleep(0.5)
+                self.send(self.gcode.G1(end={'z':self.wpos.z - 10}, f=10))
                 return self._handle_response(response="")
-            _sys.exit(2)
+            sys.exit(2)
             #self.dumpqueue()
             #self.comms.write("\x18\n\n$X\n\n".encode("utf8"))
 
             #self.reset()
             #self.home()
-        _pdb.set_trace()
+        pdb.set_trace()
         raise RuntimeError
 
     def _handle_post_reset(self, line=None):
@@ -345,7 +344,7 @@ class Mill(object):
 
     def wait_for_idle(self, goal="Idle", timeout=10):
         self.show_status(goal=goal)
-        start = _time.monotonic()
+        start = time.monotonic()
         while True:
             try:
                 status = self.get_status()
@@ -353,7 +352,7 @@ class Mill(object):
                         mpos=self.mpos, wpos=self.wpos)
                 break
             except Timeout:
-                t = _time.monotonic()
+                t = time.monotonic()
                 if t < start + timeout:
                     continue
                 raise
@@ -372,7 +371,7 @@ class Mill(object):
                 # give them a continue button?
                 self.comms.write("~")
                 #self.screen.finalize()
-                #_pdb.set_trace()
+                #pdb.set_trace()
                 #self.reset()
             elif status == "Home":
                 pass
@@ -383,7 +382,7 @@ class Mill(object):
             try:
                 status = self.get_status()
             except Timeout:
-                t = _time.monotonic()
+                t = time.monotonic()
                 if t < start + timeout:
                     continue
                 raise
@@ -409,7 +408,7 @@ class Mill(object):
                 found_bracket = True
                 response = response[1:-1]
                 if response.startswith("TLO:"):
-                    grbl_params.append({'TLO':_Decimal(response[4:])})
+                    grbl_params.append({'TLO':Decimal(response[4:])})
                     continue
                 elif response.startswith("PRB:"):
                     tmp,value = response[4:].split(':')
@@ -503,7 +502,6 @@ class Mill(object):
     def reset(self):
         self.show_status(status="Resetting", wpos=self.wpos, mpos=self.mpos)
         self.timeouts = 0
-        _signal.alarm(0)
         self.show_status(cmd="reset")
         self.show_status(cmd="$X")
         self.comms.write("\x18$X\n")

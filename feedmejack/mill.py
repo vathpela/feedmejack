@@ -184,7 +184,7 @@ class Mill(object):
                 self.comms.write("\x18$X\n")
                 self.send(self.gcode.G55())
                 response = self.comms.readline()
-                self.send(self.gcode.G43dot1(z=self.tool.z))
+                self.set_z()
                 response = self.comms.readline()
                 self.get_status()
                 time.sleep(0.5)
@@ -461,7 +461,7 @@ class Mill(object):
             self.send(self.gcode.G55())
             response = self.comms.readline()
             self._handle_response(response)
-            self.send(self.gcode.G43dot1(z=self.tool.z))
+            self.set_z()
             response = self.comms.readline()
             self._handle_response(response)
 
@@ -473,6 +473,10 @@ class Mill(object):
         for k,v in [list(zip(p.keys(),p.values()))[0] for p in self.grbl_params]:
             print("  %s: %s" % (k, v))
         print("parser state ($G): [%s]" % (' '.join(self.parser_state),))
+
+    def set_z(self):
+        self.send(self.gcode.G43dot1(z=self.tool.z))
+        self.show_status(tlo=xyz.XYZ(x=0, y=0, z=self.tool.z))
 
     def home(self):
         self.status = "Waiting for idle"
@@ -495,7 +499,7 @@ class Mill(object):
         self.send(self.gcode.G55())
         response = self.comms.readline()
         self._handle_response(response)
-        self.send(self.gcode.G43dot1(z=self.tool.z))
+        self.set_z()
         response = self.comms.readline()
         self._handle_response(response)
 

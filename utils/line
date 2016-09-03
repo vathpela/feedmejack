@@ -28,7 +28,8 @@ if __name__ == '__main__':
               "park": True,
               "debug": False,
               "dryrun": False,
-              "step": clean(0.1),
+              "step": clean(0.1, "10000.000"),
+              "raise_z": True,
               }
     settings = fmj.settings.parse_settings(defaults=others, settings=settings)
     settings = fmj.settings.finalize(settings=settings)

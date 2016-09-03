@@ -247,7 +247,7 @@ def parse_settings(defaults={}, settings=None, argv=sys.argv):
                 del argv[index]
             except ValueError:
                 args[name] = clean(defaults[name])
-        elif isinstance(defaults[name], "".__class):
+        elif isinstance(defaults[name], "".__class__):
             try:
                 index = argv.index(truename)
                 args[name] = str(argv[index+1])

@@ -470,9 +470,15 @@ class Mill(object):
 
         self.get_grbl_params()
         print("grbl params ($#):")
+        gp = {}
         for k,v in [list(zip(p.keys(),p.values()))[0] for p in self.grbl_params]:
+            gp[k] = v
             print("  %s: %s" % (k, v))
         print("parser state ($G): [%s]" % (' '.join(self.parser_state),))
+
+        for k in self.parser_state:
+            if k in ['G54','G55','G56','G57','G58','G59','G28','G30','G92']:
+                self.show_status(offset=gp[k])
 
     def set_z(self):
         self.send(self.gcode.G43dot1(z=self.tool.z))

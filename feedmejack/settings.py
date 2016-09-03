@@ -9,6 +9,7 @@ from .utility import *
 from . import utility
 from .tools import get_tool
 from .exceptions import *
+from . import serial
 
 class Settings():
     def __init__(self, d=None, max_feed_rate=math.inf):
@@ -171,7 +172,7 @@ def parse_position_settings(label=None, optional=False, settings=None,
     return settings
 
 def default_comms_settings(reporter_tty='/dev/serial/by-name/wyse',
-                           reporter_tty_speed = 38400,
+                           reporter_tty_speed = 19200,
                            mill_tty='/dev/serial/by-name/cnc-mill',
                            mill_tty_speed = 115200):
     return {'reporter_tty': reporter_tty,
@@ -271,7 +272,7 @@ def parse_settings(defaults={}, settings=None, argv=sys.argv):
     return settings
 
 def finalize(settings):
-    settings.reporter = utility.Reporter(settings)
+    settings.reporter = serial.Reporter(settings)
     if not hasattr(settings, 'home'):
         settings.home = False
     if not hasattr(settings, 'park'):

@@ -7,8 +7,6 @@ import pint
 
 from decimal import Decimal as _Decimal
 
-from .serial import *
-
 global unitreg
 unitreg = pint.UnitRegistry()
 

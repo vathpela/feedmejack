@@ -121,7 +121,7 @@ class Mill(object):
         self.timeouts = 0
         self.homingfails = 0
 
-    def __del__(self):
+    def end(self):
         self.settings.reporter.last_show_status=1
         self.get_status()
         self.show_status(status="Exiting", wpos=self.wpos, mpos=self.mpos,

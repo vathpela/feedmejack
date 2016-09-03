@@ -209,3 +209,4 @@ if __name__ == '__main__':
 
     if settings.park and not settings.dryrun:
         mill.park()
+    mill.end()

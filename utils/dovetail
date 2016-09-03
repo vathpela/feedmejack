@@ -22,7 +22,7 @@ if __name__ == '__main__':
     settings = fmj.settings.parse_comms_settings(settings=settings)
 
     others = {"home": True,
-              "park": False,
+              "park": True,
               "debug": False,
               "dryrun": False,
               "step": clean("0.1", "10000.000"),
@@ -156,3 +156,4 @@ if __name__ == '__main__':
 
     if settings.park and not settings.dryrun:
         mill.park()
+    mill.end()

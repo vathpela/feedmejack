@@ -101,9 +101,63 @@ class GCodeMaker(object):
         self._data = data
 
     def __str__(self):
+        def alnum_split(s):
+            if len(s) == 0:
+                return s
+            if s[0].isalpha():
+                was_alpha = True
+            else:
+                was_alpha = False
+            current = ""
+            for c in s:
+                is_alpha = c.isalpha()
+                if is_alpha == was_alpha:
+                    current += c
+                else:
+                    yield current
+                    current = c
+                    was_alpha = not was_alpha;
+            yield current
+
         if self._data is None:
             raise ValueError
-        return self.string(**self._data)
+        s = self.string(**self._data)
+        new_tokens = []
+        for token in s.split(' '):
+            if not token or len(token) == 0:
+                continue
+            if '.' in token:
+                a,c = token.split('.')
+                alist = list(alnum_split(a))
+                a = alist[0]
+                if len(alist) > 1:
+                    b = ''.join(alist[1:])
+                else:
+                    b = ''
+                b = b.lstrip('0')
+                if len(b) == 0:
+                    b = '0'
+                c = c.rstrip('0')
+                if len(c) == 0:
+                    joiner = ""
+                else:
+                    joiner = "."
+            else:
+                alist = list(alnum_split(token))
+                a = alist[0]
+                if len(alist) > 1:
+                    b = ''.join(alist[1:])
+                else:
+                    b = ''
+                b = b.lstrip('0')
+                if len(b) == 0:
+                    b = '0'
+                c = ''
+                joiner = ""
+
+            token = "%s%s%s%s" % (a,b,joiner,c)
+            new_tokens.append(token)
+        return ' '.join(new_tokens)
 
     def __repr__(self):
         return self.__str__()

@@ -1,0 +1,140 @@
+#!/usr/bin/python3
+
+import math
+import pdb
+import sys
+import feedmejack as fmj
+from feedmejack.utility import *
+
+if __name__ == '__main__':
+    defaults = {}
+    defaults.update(fmj.settings.default_tool_settings())
+    defaults.update(fmj.settings.default_position_settings(label='center',
+                                                         x=10, y=10, z=50))
+    defaults.update(fmj.settings.default_comms_settings())
+
+    settings = fmj.settings.Settings(d=defaults)
+    settings = fmj.settings.parse_tool_settings(settings=settings)
+    settings = fmj.settings.parse_comms_settings(settings=settings)
+
+    others = {"home": False,
+              "park": True,
+              "debug": False,
+              "dryrun": False,
+              "raise_z": True,
+              'step':0.1,
+              'depth': None,
+              'width': None,
+              }
+    settings = fmj.settings.parse_settings(defaults=others, settings=settings)
+    settings = fmj.settings.parse_position_settings(optional=False,
+                                                    label='center',
+                                                    settings=settings)
+    settings = fmj.settings.parse_position_settings(optional=True,
+                                                    settings=settings)
+    settings = fmj.settings.finalize(settings=settings)
+
+    if len(sys.argv) > 1:
+        print("what's up with this command line: %s" % (sys.argv,))
+        sys.exit(1)
+
+    tool = settings.tool
+    print("tool: %s tool.z: %s" % (tool,tool.z))
+
+    if not settings.width:
+        print("width is required")
+        sys.exit(1)
+
+    if not settings.depth:
+        print("depth is required")
+        sys.exit(1)
+
+    settings.width = Quantity(settings.width).mm
+    settings.depth = Quantity(settings.depth).mm
+    settings.depth = Decimal(abs(settings.depth), "10000.0000")
+    settings.step = Decimal(abs(settings.step), "10000.0000")
+
+    if not settings.width or settings.width < tool.diameter:
+        print("width of %s is incompatible with tool width %s" %
+                (settings.width, tool.width))
+        sys.exit(1)
+
+    mill = fmj.Mill(settings=settings)
+
+    if not settings.dryrun:
+        mill.reset()
+        mill.setup()
+
+    cmds = []
+    if settings.feed in [None,math.inf]:
+        code = mill.gcode.G0
+        args = {}
+    else:
+        cmds.append(mill.gcode.F(f=settings.feed))
+        code = mill.gcode.G1
+        args = {'f':settings.feed}
+
+    if settings.raise_z:
+        cmd = mill.gcode.G0(end={'z':50})
+        cmds.append(cmd)
+
+    if not settings.center_position_present:
+        if hasattr(settings, 'x') and hasattr(settings, 'y') and \
+           hasattr(settings, 'z'):
+            settings.center_x = settings.x
+            settings.center_y = settings.y
+            settings.center_z = settings.z
+        else:
+            print("center is required")
+            sys.exit(1)
+
+    if hasattr(settings, 'center_x'):
+        settings.x = settings.center_x
+    if hasattr(settings, 'center_y'):
+        settings.y = settings.center_y
+    if hasattr(settings, 'center_z'):
+        settings.z = settings.center_z
+
+    x = Decimal(settings.x - settings.width/2 + tool.radius, "10000.0000")
+
+    if settings.raise_z:
+        cmd = code(end={'x':x, 'y':settings.y})
+        cmds.append(cmd)
+        cmd = code(end={'z':settings.z})
+        cmds.append(cmd)
+    else:
+        cmd = code(end={'x':x, 'y':settings.y,
+                        'z':settings.z})
+        cmds.append(cmd)
+
+    for z1, z0 in sweep(settings.z,
+                        settings.z - settings.depth,
+                        -settings.step):
+        z1 = Decimal(z1, "100000000.0000") - (settings.step/2)
+        z0 = Decimal(z0, "100000000.0000")
+        if settings.x - x < tool.width * Decimal("1.8", "10000.0000"):
+            ranges = [x]
+        else:
+            ranges = list(frange(x, settings.x,
+                    tool.diameter * Decimal("0.9","10000.0000")))
+            cmds += [code(end={'x':ranges[0], 'y': settings.y, 'z':z1}),]
+        for x0 in ranges:
+            x0 = Decimal(x0, "10000000000000.0000")
+            args.update({
+                'i':settings.x - x0,
+                'j':0,
+                })
+            cmds += [
+                mill.gcode.G3(x=x0, y=settings.y, z=z1, **args),
+                mill.gcode.G3(x=x0, y=settings.y, z=z0, **args)
+            ]
+
+    for cmd in cmds:
+        print("%s" % (cmd,))
+        if not settings.dryrun:
+            mill.send(cmd)
+            mill.wait_for_idle()
+
+    if settings.park and not settings.dryrun:
+        mill.park()
+    mill.end()

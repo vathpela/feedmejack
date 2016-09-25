@@ -7,6 +7,130 @@ import pint
 
 from decimal import Decimal as _Decimal
 
+import pdb
+
+def isnumeric(s):
+    return all([char.isdigit() for char in s])
+
+def alnum_split(s):
+    if len(s) == 0:
+        return s
+    if s[0].isalpha():
+        was_alpha = True
+    else:
+        was_alpha = False
+    current = ""
+    for c in s:
+        is_alpha = c.isalpha()
+        if is_alpha == was_alpha:
+            current += c
+        else:
+            yield current
+            current = c
+            was_alpha = not was_alpha;
+    yield current
+
+def trim_zeroes(s):
+    new_tokens = []
+    for token in s.split(' '):
+        newtoken = []
+        if not token or len(token) == 0:
+            continue
+        if not token[0].isdigit() and token[0] != '-':
+            prefix = token[0]
+            newtoken.append(prefix)
+            token = token[1:]
+        else:
+            prefix = None
+
+        if not token or len(token) == 0:
+            if prefix:
+                new_tokens.append(prefix)
+            continue
+
+        if prefix and not prefix in ['X','Y','Z','I','J','K']:
+            newtoken.append(token)
+            new_tokens.append(''.join(newtoken))
+            continue
+
+        if token[0] == '-':
+            sign = '-'
+            token = token[1:]
+        else:
+            sign = ''
+        newtoken.append(sign)
+
+        if '.' in token:
+            w,d = token.split('.')
+            joiner = '.'
+        else:
+            w = token
+            joiner = ''
+            d = ''
+
+        w = w.lstrip('0')
+        d = d.rstrip('0')
+
+        if joiner == '.' and len(d) == 0:
+            joiner = ''
+        if len(w) == 0:
+            w = '0'
+
+        newtoken += [w, joiner, d]
+        new_tokens.append(''.join(newtoken))
+
+    return ' '.join(new_tokens)
+
+def anchor_pos(s):
+    def anchor_one(p, t):
+        if p in ['X','Y','Z','I','J','K']:
+            t = trim_zeroes(t)
+        if t[0] == '-':
+            sign = '-'
+            t = t[1:]
+        else:
+            sign = ' '
+
+        if "." in t:
+            a,b = t.split('.')
+        else:
+            a = t
+            b = '    '
+
+        a = '%s%s%s' % (' ' * (3-len(a)), sign, a)
+
+        if len(b) != 0 and not b[0] in (' ','.'):
+            b = '.%s' % (b,)
+        b = '%s%s' % (b, ' ' * (4 - len(b)))
+
+        return '%s%s%s' % (p, a, b)
+
+    s = s.split(' ')
+    a = ''.join(s)
+    tokens = []
+    try:
+        a,z = a.split('Z')
+        z = anchor_one('Z', z)
+    except:
+        z = '         '
+    tokens.insert(0, z)
+
+    try:
+        a,y = a.split('Y')
+        y = anchor_one('Y', y)
+    except:
+        y = '         '
+    tokens.insert(0, y)
+
+    try:
+        a,x = a.split('X')
+        x = anchor_one('X', x)
+    except:
+        x = '         '
+    tokens.insert(0, x)
+
+    return ' '.join(tokens)
+
 global unitreg
 unitreg = pint.UnitRegistry()
 
@@ -14,7 +138,6 @@ def clean(val, quant=None):
     try:
         val = _Decimal(val)
     except:
-        print("val: %s" % (val,))
         raise
     val = val.normalize()
     if quant:
@@ -91,4 +214,14 @@ def sweep(x, y, r, quant=None):
     if not p is None and p != y:
         yield [y, y]
 
-__all__ = ["clean", "frange", "sweep", "Decimal", "Quantity"]
+__all__ = [
+        "isnumeric",
+        "alnum_split",
+        "anchor_pos",
+        "clean",
+        "Decimal",
+        "frange",
+        "Quantity",
+        "sweep",
+        "trim_zeroes"
+        ]

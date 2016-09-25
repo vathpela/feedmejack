@@ -19,10 +19,23 @@ def _inside(val, l, r):
     return True
 
 class XY(object):
-    def __init__(self, x, y, r=0):
-        self.x = Decimal(x)
-        self.y = Decimal(y)
-        self.r = Decimal(r)
+    def __init__(self, x, y, r=0, quant="10000.000"):
+        self._x = Decimal(x, quant=quant)
+        self._y = Decimal(y, quant=quant)
+        self._r = Decimal(r, quant=quant)
+        self.quant = quant
+
+    @property
+    def x(self):
+        return Decimal(self._x, quant=self.quant)
+
+    @property
+    def y(self):
+        return Decimal(self._y, quant=self.quant)
+
+    @property
+    def r(self):
+        return Decimal(self._r, quant=self.quant)
 
     def __add__(self, other):
         return XY(self.x + other.x, self.y + other.y)
@@ -32,11 +45,11 @@ class XY(object):
 
     def __str__(self):
         fmt = "XY("
-        if int(self.x) == _Decimal(self.x):
+        if int(self.x) == Decimal(self.x, quant=self.quant):
             fmt += "%d,"
         else:
             fmt += "%s,"
-        if int(self.y) == _Decimal(self.y):
+        if int(self.y) == Decimal(self.y, quant=self.quant):
             fmt += "%d)"
         else:
             fmt += "%s)"
@@ -78,9 +91,11 @@ class XY(object):
     def distance(self, other):
         x = other.x - self.x
         x *= x
+        x = Decimal(x, quant=self.quant)
         y = other.y - self.y
         y *= y
-        return Decimal(math.sqrt(x+y))
+        y = Decimal(y, quant=self.quant)
+        return Decimal(math.sqrt(x+y), quant=self.quant)
 
     def slope(self, other):
         ret = (other.y - self.y) / (other.x - self.x)
@@ -126,12 +141,17 @@ class XY(object):
         raise RuntimeError("XY point has no XZ quadrant.")
 
 class XYZ(XY):
-    def __init__(self, x, y, z, r=0):
-        self.x = Decimal(x)
-        self.y = Decimal(y)
-        self.z = Decimal(z)
-        self.r = Decimal(r)
+    def __init__(self, x, y, z, r=0, quant="10000.000"):
+        self.quant = quant
+        self._x = Decimal(x, quant=quant)
+        self._y = Decimal(y, quant=quant)
+        self._z = Decimal(z, quant=quant)
+        self._r = Decimal(r, quant=quant)
         self.xy = XY(self.x, self.y)
+
+    @property
+    def z(self):
+        return Decimal(self._z, quant=self.quant)
 
     def __add__(self, other):
         return XYZ(self.x + other.x, self.y + other.y, other.z)
@@ -210,15 +230,18 @@ class XYZ(XY):
     def distance(self, other):
         x = other.x - self.x
         x *= x
+        x = Decimal(x, quant=self.quant)
         y = other.y - self.y
         y *= y
+        y = Decimal(y, quant=self.quant)
         if hasattr(other, 'z'):
             z2 = other.z
         else:
             z2 = self.z
         z = z2 - self.z
         z *= z
-        return Decimal(math.sqrt(x+y+z))
+        z = Decimal(z, quant=self.quant)
+        return Decimal(math.sqrt(x+y+z), quant=self.quant)
 
     def __hash__(self):
         return hash((self.x, self.y, self.z, self.r))
@@ -248,10 +271,14 @@ def Point(x, y, z=None):
 class Line(object):
     _strname = "Line"
 
-    def __init__(self, xy_min, xy_max):
+    def __init__(self, xy_min, xy_max, quant=None):
         self.xy_min = xy_min
         self.xy_max = xy_max
         self.color = None
+        if quant:
+            self.quant = quant
+        else:
+            self.quant = xy_min.quant
 
     def __str__(self):
         return "%s(%s,%s)" % (self._strname, self.xy_min, self.xy_max)
@@ -287,9 +314,12 @@ class Line(object):
     @property
     def middle(self):
         x = self.xmin + (self.xmax - self.xmin) / _Decimal(2.0)
+        x = Decimal(x, quant=self.quant)
         y = self.ymin + (self.ymax - self.ymin) / _Decimal(2.0)
+        y = Decimal(y, quant=self.quant)
         try:
             z = self.zmin + (self.zmax - self.zmin) / _Decimal(2.0)
+            z = Decimal(z, quant=self.quant)
             return XY(x,y,z)
         except:
             return XY(x,y)
@@ -345,7 +375,7 @@ class Line(object):
     @property
     def xym(self):
         try:
-            return self.xyrise / self.xyrun
+            return Decimal(self.xyrise / self.xyrun, quant=self.quant)
         except decimal.DivisionByZero:
             return math.inf
     # theta is in degrees
@@ -519,10 +549,10 @@ class Line(object):
         # y - mx = b
         # b = y - mx
         b = self.xy_max.y - (self.xym * self.xy_max.x)
-        return Decimal(b)
+        return Decimal(b, quant=self.quant)
 
     def xyYAtX(self, x):
-        return (self.xym * Decimal(x)) + self.xyb
+        return (self.xym * Decimal(x, quant=self.quant)) + self.xyb
 
     def xyXAtY(self, y):
         # y = mx + b

@@ -4,35 +4,39 @@ import unittest
 import math
 
 from feedmejack import shapes, xyz
-from decimal import Decimal
+from feedmejack.utility import Decimal
 
 class LineTestCase(unittest.TestCase):
     def test_Line(self):
         a = xyz.XY(0,0)
         b = xyz.XY(0.5, 0.86603)
         l = xyz.Line(a, b)
-        self.assertEqual(l.xym, Decimal('1.73206'))
+        self.assertEqual(l.xy_min.x, Decimal('0'))
+        self.assertEqual(l.xy_min.y, Decimal('0'))
+        self.assertEqual(l.xy_max.x, Decimal('0.5'))
+        self.assertEqual(l.xy_max.y, Decimal('0.866'))
+        self.assertEqual(l.xym, Decimal('1.732'))
         self.assertEqual(l.xyb, Decimal('0'))
 
         l = xyz.Line(b, a)
-        self.assertEqual(l.xym, Decimal('1.73206'))
+        self.assertEqual(l.xym, Decimal('1.732'))
         self.assertEqual(l.xyb, Decimal('0'))
 
         a = xyz.XY(0,0)
         b = xyz.XY(0.5, -0.86603)
         l = xyz.Line(a, b)
-        self.assertEqual(l.xym, Decimal('-1.73206'))
+        self.assertEqual(l.xym, Decimal('-1.732'))
         self.assertEqual(l.xyb, Decimal('0'))
 
         l = xyz.Line(b, a)
-        self.assertEqual(l.xym, Decimal('-1.73206'))
+        self.assertEqual(l.xym, Decimal('-1.732'))
         self.assertEqual(l.xyb, Decimal('0'))
 
         a = xyz.XY(1,0)
         b = xyz.XY(1.5, 0.86603)
         l = xyz.Line(a, b)
-        self.assertEqual(l.xym, Decimal('1.73206'))
-        self.assertEqual(l.xyb, Decimal('-1.73206'))
+        self.assertEqual(l.xym, Decimal('1.732'))
+        self.assertEqual(l.xyb, Decimal('-1.732'))
 
         a = xyz.XY(3,0)
         b = xyz.XY(4,5)
@@ -59,7 +63,7 @@ class RightTriangleTestCase(unittest.TestCase):
             self.assertTrue(t.a.length >= t.c.length)
 
             self.assertEqual(t.a.length, 3)
-            self.assertEqual(t.b.length, Decimal('4.24264'))
+            self.assertEqual(t.b.length, Decimal('4.243'))
             self.assertEqual(t.c.length, 3)
 
             self.assertEqual(t.BAC, 45)
@@ -90,9 +94,9 @@ class RightTriangleTestCase(unittest.TestCase):
             self.assertEqual(t.b.length, 5)
             self.assertEqual(t.c.length, 3)
 
-            self.assertEqual(t.BAC, Decimal('36.86990'))
+            self.assertEqual(t.BAC, Decimal('36.87'))
             self.assertEqual(t.ABC, 90)
-            self.assertEqual(t.ACB, Decimal('53.13010'))
+            self.assertEqual(t.ACB, Decimal('53.13000'))
 
             self.assertEqual(t.Bmid, xyz.XY(1.5, 2))
 
@@ -151,7 +155,7 @@ class TriangleTestCase(unittest.TestCase):
             self.assertTrue(t.b.length >= t.c.length)
             self.assertTrue(t.a.length >= t.c.length)
 
-            self.assertEqual(t.Bmid, xyz.XY(1.17074, 1.46342))
+            self.assertEqual(t.Bmid, xyz.XY(1.170, 1.464))
 
             l = t.a.length + t.c.length
             l = t.a.length / l
@@ -161,13 +165,13 @@ class TriangleTestCase(unittest.TestCase):
             self.assertEqual(t.b, xyz.Line(xyz.XY(0,0), xyz.XY(4,5)))
             self.assertEqual(t.c, xyz.Line(xyz.XY(0,0), xyz.XY(3,0)))
 
-            self.assertEqual(t.a.length, Decimal('5.09902'))
-            self.assertEqual(t.b.length, Decimal('6.40312'))
+            self.assertEqual(t.a.length, Decimal('5.099'))
+            self.assertEqual(t.b.length, Decimal('6.403'))
             self.assertEqual(t.c.length, 3)
 
-            self.assertEqual(t.thetaA, Decimal('51.34019'))
-            self.assertEqual(t.thetaC, Decimal('-27.34988'))
+            self.assertEqual(t.thetaA, Decimal('51.340'))
+            self.assertEqual(t.thetaC, Decimal('-27.350'))
 
-            self.assertEqual(t.ABC, Decimal('101.30993'))
-            self.assertEqual(t.BAC, Decimal('51.34019'))
-            self.assertEqual(t.ACB, Decimal('27.34988'))
+            self.assertEqual(t.ABC, Decimal('101.31'))
+            self.assertEqual(t.BAC, Decimal('51.340'))
+            self.assertEqual(t.ACB, Decimal('27.35'))

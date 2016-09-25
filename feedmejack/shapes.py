@@ -2,18 +2,13 @@
 
 from decimal import Decimal as _Decimal
 import math
+from .utility import *
 
 if __name__ != '__main__':
     from .xyz import XY, XYZ, Line
 
-def _clean(val):
-        val = _Decimal(val)
-        val = val.normalize()
-        val = val.quantize(_Decimal("1.00000"))
-        return val
-
 def _inside(val, l, r):
-    val = _clean(val)
+    val = Decimal(val)
     if l < r:
         minimum = l
         maximum = r
@@ -30,12 +25,13 @@ class Triangle(object):
         self = object.__new__(cls)
         self.__init__(A, B, C)
 
-        if _Decimal(90.0) in self.angles:
+        if Decimal(90.0) in self.angles:
             self = object.__new__(RightTriangle)
             self.__init__(A, B, C)
         return self
 
-    def __init__(self, A, B, C):
+    def __init__(self, A, B, C, quant="10000.000"):
+        self.quant = quant
         # print("lines: %s" % (lines,))
         # print("lengths: %s" % [x.length for x in lines])
 
@@ -113,7 +109,7 @@ class Triangle(object):
 
         theta = bdeg - cdeg
 
-        return _clean(theta)
+        return Decimal(theta, quant=self.quant)
 
     @property
     def thetaC(self):
@@ -122,7 +118,7 @@ class Triangle(object):
 
         theta = bdeg - adeg
 
-        return _clean(theta)
+        return Decimal(theta, quant=self.quant)
 
     @property
     def Bmid(self):
@@ -141,8 +137,10 @@ class Triangle(object):
         x = self.B.x - self.A.x
         y = self.B.y - self.A.y
 
-        x = self.B.x - lengthD * _clean(math.cos(math.radians(angleD)))
-        y = self.B.y + lengthD * _clean(math.sin(math.radians(angleD)))
+        x = self.B.x - lengthD * Decimal(math.cos(math.radians(angleD)),
+                quant=self.quant)
+        y = self.B.y + lengthD * Decimal(math.sin(math.radians(angleD)),
+                quant=self.quant)
         # print("(x,y): (%s,%s)" % (x,y))
         BmidX = (x + self.A.x) / 2
         BmidY = (y + self.A.y) / 2
@@ -162,7 +160,7 @@ class Triangle(object):
 
     @property
     def ABC(self):
-        return _clean(180 - (abs(self.thetaA) + abs(self.thetaC)))
+        return Decimal(180 - (abs(self.thetaA) + abs(self.thetaC)))
 
     @property
     def BAC(self):
@@ -186,19 +184,19 @@ class Triangle(object):
 
     @property
     def is_right(self):
-        return _Decimal(45.0) in self.angles
+        return Decimal(45.0, quant=self.quant) in self.angles
 
     @property
     def is_acute(self):
         for angle in self.angles:
-            if angle >= _Decimal(45.0):
+            if angle >= Decimal(45.0, quant=self.quant):
                 return False
         return True
 
     @property
     def is_obtuse(self):
         for angle in self.angles:
-            if angle > _Decimal(45.0):
+            if angle > Decimal(45.0, quant=self.quant):
                 return True
         return False
 
@@ -289,19 +287,19 @@ class RightTriangle(Triangle):
 
     @property
     def area(self):
-        return _clean(self.a.length * self.c.length / _Decimal(2.0))
+        return Decimal(self.a.length * self.c.length / Decimal(2.0))
 
     @property
     def ABC(self):
-        return _Decimal(90.0)
+        return Decimal(90.0)
 
     @property
     def BAC(self):
-        return _Decimal(180.0) - _Decimal(90.0) - _clean(self.thetaC)
+        return Decimal(180.0) - Decimal(90.0) - Decimal(self.thetaC)
 
     @property
     def ACB(self):
-        return _Decimal(180.0) - _Decimal(90.0) - _clean(self.thetaA)
+        return Decimal(180.0) - Decimal(90.0) - Decimal(self.thetaA)
 
     @property
     def Bmid(self):
@@ -309,10 +307,10 @@ class RightTriangle(Triangle):
         which would be perpendicular to self.b.
         """
 
-        x = (self.A.x + self.C.x) / _Decimal(2.0)
-        y = (self.A.y + self.C.y) / _Decimal(2.0)
+        x = (self.A.x + self.C.x) / Decimal(2.0)
+        y = (self.A.y + self.C.y) / Decimal(2.0)
         try:
-            z = (self.B.z + self.C.z) / _Decimal(2.0)
+            z = (self.B.z + self.C.z) / Decimal(2.0)
             Bmid = XYZ(x, y, z)
         except:
             Bmid = XY(x, y)
@@ -326,13 +324,13 @@ class RightTriangle(Triangle):
     def thetaA(self):
         a = self.A.distance(self.B)
         o = self.C.distance(self.B)
-        return math.degrees(math.atan2(a,o))
+        return Decimal(math.degrees(math.atan2(a,o)), quant=self.quant)
 
     @property
     def thetaC(self):
         a = self.C.distance(self.B)
         o = self.A.distance(self.B)
-        return math.degrees(math.atan2(a,o))
+        return Decimal(math.degrees(math.atan2(a,o)), quant=self.quant)
 
     @property
     def baseline(self):

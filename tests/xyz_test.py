@@ -3,7 +3,7 @@
 import unittest
 
 from feedmejack import xyz
-from decimal import Decimal
+from feedmejack.utility import Decimal
 
 class XYTestCase(unittest.TestCase):
     def test_XY_add(self):
@@ -101,7 +101,7 @@ class XYZTestCase(unittest.TestCase):
         self.assertEqual(c.xzquadrant, 1)
 
         d = xyz.XYZ(-1,-1,-1)
-        self.assertEqual(c.distance(d), Decimal('3.46410'))
+        self.assertEqual(c.distance(d), Decimal('3.46410', quant="10000.000"))
 
 class LineTestCase(unittest.TestCase):
     def test_Line_str(self):
@@ -110,10 +110,10 @@ class LineTestCase(unittest.TestCase):
 
     def test_Line_length(self):
         a = xyz.Line(xyz.XY(0,0), xyz.XY(1,1))
-        self.assertEqual(a.length, Decimal('1.41421'))
+        self.assertEqual(a.length, Decimal('1.414'))
 
         a = xyz.Line(xyz.XY(1,-3), xyz.XY(-5,-7))
-        self.assertEqual(a.length, Decimal('7.21110'))
+        self.assertEqual(a.length, Decimal('7.211'))
 
         self.assertEqual(list(a.points), [xyz.XY(1,-3), xyz.XY(-5,-7)])
 
@@ -126,7 +126,7 @@ class LineTestCase(unittest.TestCase):
         self.assertEqual(a.bottom, xyz.Line(xyz.XY(0,0), xyz.XY(2,2.5)))
 
         self.assertEqual(a.xybisector,
-                         xyz.Line(xyz.XY(-0.5,4.5), xyz.XY(4.5,0.5)))
+                         xyz.Line(xyz.XY(-0.499,4.499), xyz.XY(4.5,0.5)))
 
     def test_Line_atD(self):
         a = xyz.Line(xyz.XY(0,0), xyz.XY(4,5))
@@ -169,7 +169,7 @@ class LineTestCase(unittest.TestCase):
     def test_Line_distance(self):
         a = xyz.Line(xyz.XY(0,0), xyz.XY(4,5))
         A = xyz.XY(0,4)
-        self.assertEqual(a.distance(A), Decimal('4.06156'))
+        self.assertEqual(a.distance(A), Decimal('4.0615'))
 
     def test_Line_sort(self):
         a = xyz.XY(0,0)
